@@ -1,6 +1,9 @@
 import {RUI} from "@iandx/reactui";
-import {Block} from "./block";
+import {MarkdownDocument} from "./block";
+import {Div} from "@iandx/reactui/tag";
 
-export const MarkdownerDocument = RUI(({syntaxTrees}: any)=>
-    Block({syntaxTrees, isDocument: true})
+export const MarkdownerDocument = RUI(({markdownASTs}: any)=>
+    Div(
+        MarkdownDocument({markdownASTs, isDocument: true})
+    ).className("Markdowner-Document-root")
 )

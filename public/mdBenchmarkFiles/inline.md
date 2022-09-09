@@ -24,3 +24,6 @@ x^2^
 this <em>word</em> is italic
 ## escaping
 \* \_ \~ \=
+
+## nesting
+~~*ssf*~~ ~~a**b*c^d^c*b**a~~

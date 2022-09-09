@@ -63,7 +63,8 @@ export const inlineDefaultRules: InlineMarkdownRules = {
     FootnoteSup: {
         tags: {wrap: ["[^", "]"]},
         getProps: (text) => {
-            return {noteName: text.replaceAll(/[[\]^]/g, ""), uid: uid()}
+            let noteName = text.replaceAll(/[[\]^]/g, "")
+            return {noteName}
         },
         order: 0
     }

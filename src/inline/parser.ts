@@ -1,9 +1,9 @@
-import {generateBlockSyntaxTree as geneTree, MarkdownSyntaxTree} from "../base/syntaxTree";
+import {generateBlockSyntaxTree as geneTree, MarkdownAST} from "../base/syntaxTree";
 import {InlineTagHandler} from "./regex";
 import {inlineDefaultRules, InlineMarkdownRules} from "./rules";
 import {capturingRegExp} from "../base/utils";
 import {uid} from "@iandx/reactui";
-
+import {C as BC} from "../block/parser"
 
 
 export namespace C {
@@ -12,7 +12,7 @@ export namespace C {
     const uuid = uid()
 
     function generateInlineSyntaxTree(type: string, raw?: string, content?: any, props?: any,
-                                     children?: MarkdownSyntaxTree[]): MarkdownSyntaxTree {
+                                     children?: MarkdownAST[]): MarkdownAST {
         return geneTree(type, "inline", raw, content, props, children)
     }
 
@@ -21,6 +21,7 @@ export namespace C {
         usedRuleHandlers: InlineTagHandler[] = []
         retriveRegex = new RegExp(`(<I[0-9]{${MAX_BASE}}-[0-9]{${MAX_BASE}}-${uuid}>)`, "g")
         inlineRules: InlineMarkdownRules = {}
+        state: {[key:string]:any} = {}
 
         constructor(rules: InlineMarkdownRules = {}, useDefault: boolean = true, newInstance=false) {
             if (newInstance) return
@@ -28,7 +29,7 @@ export namespace C {
             if (useDefault) allRules = {...inlineDefaultRules, ...allRules}
             this.inlineRules = allRules
             for (let ruleKey of Object.keys(allRules)) {
-                this.inlineRuleHandlers.push(new InlineTagHandler(ruleKey, allRules[ruleKey]))
+                this.inlineRuleHandlers.push(new InlineTagHandler(ruleKey, allRules[ruleKey], this))
             }
             this.inlineRuleHandlers = this.inlineRuleHandlers.sort((a, b)=>a.order-b.order)
 
@@ -50,10 +51,10 @@ export namespace C {
             return [replacedContent, matchedStore]
         }
 
-        private retriveMatchedStore(replacedContent: string, matchedStore: string[][]): [string, MarkdownSyntaxTree[]] {
+        private retriveMatchedStore(replacedContent: string, matchedStore: string[][]): [string, MarkdownAST[]] {
             let isMatched = true
             let retrivedContent = ""
-            let syntaxTrees: MarkdownSyntaxTree[] = []
+            let markdownASTs: MarkdownAST[] = []
 
             for (let subContent of replacedContent.split(this.retriveRegex)) {
                 isMatched = !isMatched
@@ -80,9 +81,9 @@ export namespace C {
 
                     // ---- if not pass recheck, merge it to previous
                     if (rule.useRecheckMatch && !rule.recheckMatch(rawContent)) {
-                        let preSyntaxTree = syntaxTrees[syntaxTrees.length-1]
+                        let preSyntaxTree = markdownASTs[markdownASTs.length-1]
                         if (!preSyntaxTree || preSyntaxTree.type !== "Text") {
-                            syntaxTrees.push(generateInlineSyntaxTree("Text", rawContent, rawContent))
+                            markdownASTs.push(generateInlineSyntaxTree("Text", rawContent, rawContent))
                         } else {
                             preSyntaxTree.raw += rawContent
                             preSyntaxTree.content += rawContent
@@ -90,16 +91,16 @@ export namespace C {
                     } else {
                         // ---- pass recheck add new tree
                         let props = rule.getProps(rawContent)
-                        syntaxTrees.push(generateInlineSyntaxTree(
+                        markdownASTs.push(generateInlineSyntaxTree(
                             rule.ruleName, rawContent, trimText, props,
                             childrenSyntaxTrees
                         ))
                     }
                     retrivedContent += rawContent
                 } else {
-                    let preSyntaxTree = syntaxTrees[syntaxTrees.length-1]
+                    let preSyntaxTree = markdownASTs[markdownASTs.length-1]
                     if (!preSyntaxTree || preSyntaxTree.type !== "Text") {
-                        syntaxTrees.push(generateInlineSyntaxTree("Text", subContent, subContent))
+                        markdownASTs.push(generateInlineSyntaxTree("Text", subContent, subContent))
                     } else {
                         // ---- previous didn't pass recheck so merge current to last
                         preSyntaxTree.raw += subContent
@@ -108,11 +109,11 @@ export namespace C {
                     retrivedContent += subContent
                 }
             }
-            return [retrivedContent, syntaxTrees]
+            return [retrivedContent, markdownASTs]
         }
 
 
-        parse(content: string): MarkdownSyntaxTree[] {
+        parse(content: string): MarkdownAST[] {
             for (let rule of this.inlineRuleHandlers) {
                 if (capturingRegExp(rule.regexString).test(content)) {
                     this.usedRuleHandlers.push(rule)
@@ -122,16 +123,15 @@ export namespace C {
             if (this.usedRuleHandlers.length === 0) return [generateInlineSyntaxTree("Text", content, content)]
 
             let [replacedContent, matchedStore] = this.split(content)
-            let [_, syntaxTrees] = this.retriveMatchedStore(replacedContent, matchedStore)
+            let [_, markdownASTs] = this.retriveMatchedStore(replacedContent, matchedStore)
 
-            return syntaxTrees
+            return markdownASTs
         }
 
         new() {
             let newParser = new MarkdownInlineParser(undefined, undefined, true)
             newParser.inlineRules = this.inlineRules
             newParser.inlineRuleHandlers = this.inlineRuleHandlers
-
             return newParser
         }
     }

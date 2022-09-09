@@ -2,6 +2,7 @@ import {Markdowner} from "./index";
 import MarkdownIt from "markdown-it";
 import {Lexer} from "marked";
 import {range} from "@iandx/reactui";
+import {totalTime} from "../block/parser";
 
 
 Markdowner.init()
@@ -39,7 +40,7 @@ async function mdTextIter(fileName="test1", repeatNum=1) {
     let content = (await readMDFile(fileName)).repeat(repeatNum)
 
     let markdownerTime = calTime(() => {
-        Markdowner.parse(content)
+        Markdowner.new().parse(content)
     })
 
     let markdownItTime = calTime(() => {
@@ -77,20 +78,19 @@ async function benchmarkSingleFile(fileName:string, iterations=1000, repeatNum=1
 
 export async function benchmark() {
     console.log("start testing")
-    let iterations = 1000, repeatTimes = 1
+    let iterations = 50, repeatTimes = 10
     let tableResult = 
 `| file           | markdowner | markdown-it | marked  |
 | -------------- | ---------- | ----------- | ------- |
 `
+    tableResult += await  benchmarkSingleFile("fullFeatures", iterations, repeatTimes)
     tableResult += await  benchmarkSingleFile("heading", iterations, repeatTimes)
     tableResult += await  benchmarkSingleFile("list", iterations, repeatTimes)
     tableResult += await  benchmarkSingleFile("blockQuote", iterations, repeatTimes)
     tableResult += await  benchmarkSingleFile("codeBlock", iterations, repeatTimes)
     tableResult += await  benchmarkSingleFile("table", iterations, repeatTimes)
-    tableResult += await  benchmarkSingleFile("definitionList", iterations, repeatTimes)
     tableResult += await  benchmarkSingleFile("footnote", iterations, repeatTimes)
     tableResult += await  benchmarkSingleFile("checkList", iterations, repeatTimes)
     tableResult += await  benchmarkSingleFile("inline", iterations, repeatTimes)
-
     console.log(tableResult)
 }

@@ -1,6 +1,6 @@
-import {correctRegExpKeywords} from "../base/utils";
-import {inlineDefaultRules, InlineMarkdownRules} from "../inline/rules";
-import {MarkdownInlineParser} from "../inline/parser";
+import {correctRegExpKeywords} from "../../base/utils";
+import {inlineDefaultRules, InlineMarkdownRules} from "../../inline/rules";
+import {MarkdownInlineParser} from "../../inline/parser";
 import {C} from "./parser";
 
 // ---- declaring
@@ -15,14 +15,15 @@ export interface BlockMarkdownTag {
 
 export interface BlockMarkdownTagExtend {
     tags: BlockMarkdownTag
-    getProps?: ((raw: string, state: {[key:string]: any}, handler: BlockTagHandler) => any | ((raw: string, state: {[key:string]: any}, handler: BlockTagHandler) => any)[])
-    getContainerProps?: ((raw: string, state: {[key:string]: any}, handler: BlockTagHandler) => any | ((raw: string, handler: BlockTagHandler) => any)[])
-    trimText?: (raw: string, ...args: any) => string
+    getProps?: ((text: string, handler: BlockTagHandler) => any | ((text: string, handler: BlockTagHandler) => any)[])
+    getContainerProps?: ((text: string, handler: BlockTagHandler) => any | ((text: string, handler: BlockTagHandler) => any)[])
+    trimText?: (text: string, ...args: any) => string
     recheckMatch?: ((raw: string) => boolean | ((raw: string) => boolean)[])
     order?: number
     parseContent?: (text: string, handler: BlockTagHandler) => any
     parseContainerContent?: (text: string, handler: BlockTagHandler) => any
     blockType?: "container" | "leaf"
+    dropContainer?: boolean
 }
 
 export const hardLineBreakRegex = /(?:\n| {2} *|\\)\n/g
@@ -35,25 +36,28 @@ export class BlockTagHandler {
     order: number = 1
     inlineRules: InlineMarkdownRules = inlineDefaultRules
     blockType: "container" | "leaf" = "leaf"
-    get regex(): RegExp {
-        return new RegExp(this.regexString, "g")
-    }
+    // ---- drop container children
+    dropContainer: boolean = false
+
+    // ---- sole leading container end
+    containerRuleEnd: string
 
     tabSpaceNum: number
 
     parseContent: (text: string) => any = text => this.defaultParseContent(text)
     parseContainerContent: (text: string) => any = _ => undefined
-    getProps: (raw: string) => any = () => {}
-    getContainerProps: (raw: string) => any = () => {}
-    trimText: (raw: string) => string = this.defaultTrimText
+    getProps: (text: string) => any = () => {}
+    getContainerProps: (text: string) => any = () => {}
+    trimText: (text: string) => string = this.defaultTrimText
     recheckMatch: (raw: string) => boolean = () => true
 
 
     parser: C.MarkdownBlockParser
 
-    constructor(ruleName:string, tags: BlockMarkdownTag | BlockMarkdownTagExtend, tabSpaceNum: number, parser: C.MarkdownBlockParser) {
+    constructor(ruleName:string, tags: BlockMarkdownTag | BlockMarkdownTagExtend, tabSpaceNum: number, containerRuleEnd: string, parser: C.MarkdownBlockParser) {
         this.ruleName = ruleName
         this.tabSpaceNum = tabSpaceNum
+        this.containerRuleEnd = containerRuleEnd
         this.parser = parser
         if (Object.keys(tags).includes("tags")) {
             let tagExtend = tags as BlockMarkdownTagExtend
@@ -78,6 +82,15 @@ export class BlockTagHandler {
         }
 
         if (tagExtend.order !== undefined) this.order = tagExtend.order
+        if (!!tagExtend.getProps) this.getProps = (text: string) => {
+            let getPropsArr: any = tagExtend.getProps
+            if (!(tagExtend.getProps! instanceof Array)) getPropsArr = [getPropsArr]
+            let props = {}
+            for (let getPropsFunc of getPropsArr) {
+                props = {...props, ...getPropsFunc(text, this)}
+            }
+            return props
+        };
         if (!!tagExtend.trimText) this.trimText = tagExtend.trimText!
 
         if (!!tagExtend.recheckMatch) {
@@ -100,7 +113,7 @@ export class BlockTagHandler {
             if (!(tagExtend.getProps! instanceof Array)) getPropsArr = [getPropsArr]
             let props = {}
             for (let getPropsFunc of getPropsArr) {
-                props = {...props, ...getPropsFunc(text, this.parser.state, this)}
+                props = {...props, ...getPropsFunc(text, this)}
             }
             // ---- block extend props using [blockProp={}]
             return props
@@ -110,10 +123,11 @@ export class BlockTagHandler {
             if (!(tagExtend.getContainerProps! instanceof Array)) getPropsArr = [getPropsArr]
             let props = {}
             for (let getPropsFunc of getPropsArr) {
-                props = {...props, ...getPropsFunc(text, this.parser.state, this)}
+                props = {...props, ...getPropsFunc(text, this)}
             }
             return props
         }
+        if (tagExtend.dropContainer !== undefined) this.dropContainer = tagExtend.dropContainer
     }
 
     private static getTags(tags: BlockMarkdownTag): BlockMarkdownTag {
@@ -141,15 +155,29 @@ export class BlockTagHandler {
         }
         // ---* parse single line [T]text
         //      special for leading, because it doesn't have an end symbol
-        for (let tag of (this.tags.leading! ?? []) as Array<BlockMarkdownTagType>) {
-            let regexTag = correctRegExpKeywords(tag)
-            regexArray.push(`(?:(?<=\\n|^)${regexTag}.+?(?:\\n|$))`)
+        if (this.blockType === "container") {
+            for (let tag of (this.tags.leading! ?? []) as Array<BlockMarkdownTagType>) {
+                let regexTag = correctRegExpKeywords(tag)
+                // -**- do it again, a bit different
+                //      this is for
+                //      * abc
+                //      * def
+                //      1. ghi
+                //      => [* abc\n* def, 1. ghi]
+                regexArray.push(
+                    `(?:(?<=\\n|^)${regexTag}(?:.|\\n)+?(?=(?:\\n(?:${this.containerRuleEnd}))|$))`)
+            }
+        } else {
+            for (let tag of (this.tags.leading! ?? []) as Array<BlockMarkdownTagType>) {
+                let regexTag = correctRegExpKeywords(tag)
+                regexArray.push(`(?:(?<=\\n|^)${regexTag}.+?(?:\\n|$))`)
+            }
         }
 
         // ---* parse [T]
         for (let tag of (this.tags.exact ?? []) as Array<BlockMarkdownTagType>) {
             let regexTag = correctRegExpKeywords(tag)
-            regexArray.push(`(?:${regexTag})`)
+            regexArray.push(`(?:(?<=\\n|^)${regexTag}(?:\\n|$))`)
         }
         this.regexString = regexArray.join("|")
     }

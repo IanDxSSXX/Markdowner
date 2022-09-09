@@ -1,6 +1,6 @@
 import {BlockMarkdownTagExtend, BlockMarkdownTag, hardLineBreakRegex, BlockTagHandler} from "./regex";
 import {tab} from "@testing-library/user-event/dist/tab";
-import {flattened} from "../base/utils";
+import {flattened} from "../../base/utils";
 import {uid} from "@iandx/reactui";
 
 export interface BlockMarkdownRules {
@@ -8,50 +8,47 @@ export interface BlockMarkdownRules {
 }
 
 export const blockDefaultRules: BlockMarkdownRules = {
-    NewLine: {
-        tags: {exact: /(?<=^|\n| {2} *|\\)\n/},
-        order: 1000
-    },
     Heading: {
         tags: {
             leading: /#{1,5} /,
-            exact: [/(?<=^|\n).+? ?\n===+ *(?:\n|$)/, /(?<=^|\n).+? ?\n---+ *(?:\n|$)/]
+            exact: [/(?<=^|\n).+? ?\n==={1,4} ?/, /(?<=^|\n).+? ?\n---{1,4} ?/]
         },
-        getProps: (text) => {
+        getProps: (text: string) => {
             let headingLevel: number
             let hashHeadingMatch = text.match(/^#+ /)
             if (hashHeadingMatch) {
                 headingLevel = hashHeadingMatch![0].trim().length
             } else {
-                let heading1Match = text.match(/\n===+}/)
+                let heading1Match = text.match(/\n==={1,4}/)
                 headingLevel = heading1Match ? 1 : 2
             }
             return {headingLevel}
         },
-        trimText: text => text.replaceAll(/\n((===+)|(---+))/g, "").replaceAll(/^#{1,5} /g, "")
+        trimText: text => text.replaceAll(/\n((==={1,4})|(---{1,4}))/g, "").replaceAll(/^#{1,5} /g, "")
     },
     OrderedList: {
-        tags: {leading: /(?: {2})*[0-9]\. /},
-        getContainerProps: (text) => ({start: +text.match(/\d+/g)![0]}),
+        tags: {leading: /[0-9]\. /},
+        getContainerProps: text => ({start: +text.match(/\d+/g)![0]}),
         blockType: "container"
     },
     UnorderedList: {
-        tags: {leading: [/(?: {2})*[*+-] /]},
+        tags: {leading: ["* ", "+ ", "- "]},
         blockType: "container"
     },
     Blockquote: {
-        tags: {exact: /(?<=\n|^)(?:(?:> *)+ .+?(?:\n|$))+/},
+        tags: {leading: "> "},
         parseContent: (text, handler) => {
-            let newText = text.replaceAll(/(?<=^|\n)> */g, "")
+            let newText = text.replaceAll(/(?<=^|\n) ?> /g, " ")
+            newText = newText.replaceAll(/(?<= >.+?\n|^) (?!>)/g, "\n")
             let parser = handler.parser.new()
-
             return parser.parse(newText)
-        }
+        },
+        blockType: "container",
+        dropContainer: true
     },
     CodeBlock: {
         tags: {round: "```"},
-        parseContent: text => {
-            text = text.replace(/^```|```$/g, "")
+        parseContent: (text: string) => {
             let language = (text.match(/^.+?\n/g) ?? ["text"])[0].replace("```", "").trim()
             let content = text.replace(/^.+?\n/g, "")
             return {language, content}
@@ -61,7 +58,7 @@ export const blockDefaultRules: BlockMarkdownRules = {
         tags: {
             exact: /\|(?: .+? \|)+\n\|(?: [-*:]{1,2}-+[-*:]{1,2}? \|)+(?:\n\|(?: .+? \|)+)*/
         },
-        parseContent: (text) => {
+        parseContent: (text: string) => {
             let header: string[]
 
             let allRows = text.split("\n").filter(r=>r!=="")
@@ -111,10 +108,40 @@ export const blockDefaultRules: BlockMarkdownRules = {
         getProps: text => ({dividerType: (text.match(/dashed|dotted|solid/) ?? ["solid"])[0]})
     },
     CheckList: {
-        tags: {leading: /(?: {2})*- \[[ x]] /},
-        blockType: "container",
-        order:0,
-        getProps: text => ({isChecked: text.match(/(?: {2})*- \[[ x]] /)![0].includes("x")})
+        tags: {exact: /(?: *- \[[x ]] .+?\n)* *- \[[x ]] .+?/},
+        order: 0, // ---- prior to unordered list,
+        parseContent: (text, handler) => text
+            .replaceAll(/ *- \[[x ]] /g, "").trim().split("\n")
+            .map(c=>handler.defaultParseContent(c)),
+        getProps: (text, handler) => {
+            let parser = handler.parser
+            let checkedArr = [], indentArr = []
+            if (parser.listStrictIndent) {
+                for (let line of text.trim().split("\n")) {
+                    let checkMatch = line.match(/ *- \[[x ]]/)![0]
+                    checkedArr.push(checkMatch.includes("x"))
+                    indentArr.push(Math.floor(checkMatch.search(/[^ ]/)/parser.tabSpaceNum))
+                }
+            } else {
+                let spaceCounts: number[] = []
+                let splitContent = text.trim().split("\n")
+                for (let line of splitContent) {
+                    let checkMatch = line.match(/ *- \[[x ]]/)![0]
+                    checkedArr.push(checkMatch.includes("x"))
+                    let spaceCount = checkMatch.search(/[^ ]/)
+                    spaceCounts.push(spaceCount)
+                }
+                let spaceCountSet = [...new Set(spaceCounts)].sort()
+                let maxSpaceCount: number = 0
+                for (let [idx, spaceCount] of spaceCountSet.entries()) {
+                    if ((spaceCount - spaceCounts[idx - 1] ?? maxSpaceCount) < parser.tabSpaceNum) {
+                        maxSpaceCount = spaceCount
+                    }
+                }
+                indentArr = spaceCounts.map(s=>Math.floor(Math.max(s-maxSpaceCount,0)/parser.tabSpaceNum))
+            }
+            return {checkedArr, indentArr}
+        }
     },
     Image: {
         tags: {exact: /!\[.+?]\(.+?(?: .+?)*? *\)|\[!\[.+?]\(.+?(?: .+?)*? *\)]\(.+?\)/},
@@ -143,32 +170,20 @@ export const blockDefaultRules: BlockMarkdownRules = {
     },
     MathBlock: {
         tags: {round: "$$"},
-        parseContent: (text) => text.replace(/^\$\$|\$\$$/g, "")
+        parseContent: text => text
     },
     Latex: {
         tags: {round: "$$$"},
-        parseContent: (text) => text.replace(/^\$\$\$|\$\$\$$/g, ""),
-        order: -1
+        parseContent: text => text,
+        order: 0
     },
     Footnote: {
         tags: {leading: /\[\^.+?]:/},
-        getProps: (text, state) => {
-            let noteName = text.match(/^\[\^.+?]:/)![0].replaceAll(/[[\]:^]/g, "").trim()
-
-            if (state.footnoteArr === undefined) state.footnoteArr = {}
-            let footnoteArr = state.footnoteArr
-            if (footnoteArr[noteName] === undefined) {
-                footnoteArr[noteName] = 0
-            } else {
-                footnoteArr[noteName] += 1
-            }
-            return {
-                elementOrder: 100,
-                noteName,
-                footnoteIdx: footnoteArr[noteName],
-                rerender: true
-            }
-        },
+        getProps: text => ({
+            elementOrder: 100,
+            noteName: text.match(/^\[\^.+?]:/)![0].replaceAll(/[[\]:^]/g, "").trim(),
+            uid: uid()
+        }),
 
     }
 

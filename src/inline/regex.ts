@@ -1,4 +1,5 @@
 import {correctRegExpKeywords} from "../base/utils";
+import {C, MarkdownInlineParser} from "./parser";
 
 // ---- declaring
 export type InlineInlineMarkdownTagType = string | RegExp
@@ -11,8 +12,8 @@ export interface InlineMarkdownTag {
 
 export interface InlineMarkdownTagExtend {
     tags: InlineMarkdownTag
-    getProps?: ((text: string, ...args: any) => any | ((text: string, ...args: any) => any)[])
-    trimText?: (text: string, ...args: any) => string
+    getProps?: ((raw: string, state: {[key:string]:any}, handler: InlineTagHandler) => any | ((raw: string, state: {[key:string]: any}, handler: InlineTagHandler) => any)[])
+    trimText?: (raw: string) => string
     recheckMatch?: ((raw: string) => boolean | ((raw: string) => boolean)[])
     order?: number
     allowNesting?: boolean
@@ -27,13 +28,15 @@ export class InlineTagHandler {
     currentTag: InlineMarkdownTag|undefined
     order: number = 1
     allowNesting = true
+    parser: C.MarkdownInlineParser
 
-    getProps: (text: string) => any = () => {}
-    trimText: (text: string) => string = this.defaultTrimText
+    getProps: (raw: string) => any = () => {}
+    trimText: (raw: string) => string = this.defaultTrimText
     recheckMatch: (raw: string) => boolean = () => true
 
-    constructor(ruleName:string, tags: InlineMarkdownTag | InlineMarkdownTagExtend) {
+    constructor(ruleName:string, tags: InlineMarkdownTag | InlineMarkdownTagExtend, parser: C.MarkdownInlineParser) {
         this.ruleName = ruleName
+        this.parser = parser
         if (Object.keys(tags).includes("tags")) {
             let tagExtend = tags as InlineMarkdownTagExtend
             this.tags = this.getTags(tagExtend.tags)
@@ -48,12 +51,12 @@ export class InlineTagHandler {
     // ---- initialization
     protected parseExtend(tagExtend: InlineMarkdownTagExtend) {
         if (tagExtend.order !== undefined) this.order = tagExtend.order
-        if (!!tagExtend.getProps) this.getProps = (text: string) => {
+        if (!!tagExtend.getProps) this.getProps = (raw: string) => {
             let getPropsArr: any = tagExtend.getProps
             if (!(tagExtend.getProps! instanceof Array)) getPropsArr = [getPropsArr]
             let props = {}
             for (let getPropsFunc of getPropsArr) {
-                props = {...props, ...getPropsFunc(text, this)}
+                props = {...props, ...getPropsFunc(raw, this.parser.state, this)}
             }
             return props
         };
@@ -125,7 +128,7 @@ export class InlineTagHandler {
             let trimArr = trimText.split(new RegExp(`(^${regexTag}|${regexTag}$)`, "g"))
             if (trimArr.length === 5) {
                 this.currentTag = {"round": trimArr[1]} as InlineMarkdownTag
-                return trimArr[2]
+                trimText = trimArr[2]
             }
         }
         // ---- trim wrap tag like <span></span>
@@ -135,7 +138,7 @@ export class InlineTagHandler {
             let trimArr = trimText.split(new RegExp(`(^${regexLeftTag}|${regexRightTag}$)`, "g"))
             if (trimArr.length === 5) {
                 this.currentTag = {"wrap": [trimArr[1], trimArr[3]]} as InlineMarkdownTag
-                return trimArr[2]
+                trimText = trimArr[2]
             }
         }
 

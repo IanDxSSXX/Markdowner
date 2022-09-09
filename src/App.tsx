@@ -7,7 +7,7 @@ import {range, useRUIState} from "@iandx/reactui";
 import {Markdowner, C} from "./base";
 import {MarkdownerDocument} from "./render";
 import MarkdownIt from "markdown-it"
-import {MarkdownSyntaxTree} from "./base/syntaxTree";
+import {MarkdownAST} from "./base/syntaxTree";
 import {benchmark, readMDFile} from "./base/benchmark";
 import { renderToString } from 'react-dom/server'
 import katex from "katex"
@@ -15,61 +15,92 @@ import katex from "katex"
 import * as latex from 'latex.js'
 
 function test() {
+    let content =
+`hhh
+# heading
+plain text 1
+* list1
+  * list11
+continue list11
+  * list12
+  
+  plain text3
+* list2
+continue list2
+# heading2
+plain text 4
+continue plain text\\
+plain text 5  
+plain text 6
+`
+    console.log(content)
+    // console.log("fuck",/(?:(?<=\n|^) *\* .+?(?:\n|$))/g.test("  * list11\\n"))
 
+    let out = Markdowner.parse(content)
+    console.log(out)
+    //
+    // let arr = range(5000000).asArray()
+    // let a,b
+    // let t1,t2
+    // t1 = performance.now()
+    // for (let i of arr) {
+    //     a =i
+    //     b=i
+    // }
+    // t2 = performance.now()
+    // console.log(t2-t1)
 
 }
-Markdowner.init({softBreak: false})
+Markdowner.init({softBreak: true, willParseContent:false})
 
 
 
 
 function App() {
-
-    let syntaxTrees = useRUIState([])
     // benchmark()
-    // readMDFile("fullFeatures").then(content => {
-    //     let trees = Markdowner.parse(content)
-    //     console.log(trees)
-    //     let newTrees = new C.SyntaxTreeHelper(trees).flatten()
-    //     console.log(newTrees)
-    // })
+    // test()
+    readMDFile("fullFeatures").then(content => {
+        // let trees = Markdowner.new({willParseContent:false}).parse(content)
+        // console.log(trees)
+    })
 
+    let markdownASTs = useRUIState([])
     return (
       HStack(
           RUITag("textarea")
               .onChange((e)=>{
-                  let plainContent = (e.target as any).value
-                  let trees = Markdowner.ASTHelper.incrementalParse(plainContent)
-                  syntaxTrees.value = trees
-                  console.log(trees)
-                  const toFindDuplicates = (arry:any) => arry.filter((item:any, index:any) => arry.indexOf(item) !== index)
-                  console.log(trees.filter(t => toFindDuplicates(trees.map(t=>t.id!)).includes(t.id)))
-                  // readMDFile("fullFeatures").then(content => {
-                  //     // for (let i of range(10).asArray()) {
-                  //     //     console.log(Markdowner.render(content))
-                  //     // }
-                  // })
-                  // console.log(JSON.stringify(trees))
+                  let content = (e.target as any).value
+                  let t1,t2
+                  t1 = performance.now()
+                  let trees = Markdowner.ASTHelper.incrementalParse(content)
+                  t2 = performance.now()
+                    console.log(t2-t1)
+                  t1 = performance.now()
+                  let a2 = Markdowner.new().ASTHelper.incrementalParse(content)
+                  t2 = performance.now()
+                  console.log(t2-t1)
+                  console.log(a2)
 
-                  // console.log(trees)
+                  markdownASTs.value = trees
+                  // console.log(Markdowner.new().parse(content))
               })
-              .height("600px")
-              .width("300px")
+              .height("100%")
+              .width("46%")
               .padding("20px")
               .outline("none")
               .border("1px solid gray"),
 
-          MarkdownerDocument({syntaxTrees: syntaxTrees.value})
-              .width("300px")
-              .height("600px")
+          MarkdownerDocument({markdownASTs: markdownASTs.value})
+              .height("100%")
+              .width("46%")
               .padding("20px")
               .border("1px solid gray")
               .overflow("scroll")
 
       )
-          .width("600px")
-          .height("600px")
-          .margin("40px")
+          .width("96%")
+          .height("800px")
+          .margin("%2")
           .asReactElement()
     )
 }

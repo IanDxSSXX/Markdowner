@@ -2,22 +2,21 @@ import {InlineContent, ContentType, inlineElements} from "./inline";
 import {A, Div, Img, Input, Li, Ol, RUITag, Span, Table, Ul} from "@iandx/reactui/tag";
 import {Prism as SyntaxHighlighter} from "react-syntax-highlighter";
 import {oneLight} from "react-syntax-highlighter/dist/esm/styles/prism";
-import {MarkdownSyntaxTree} from "../base/syntaxTree";
+import {MarkdownAST} from "../base/syntaxTree";
 import {HStack, Spacer, VStack} from "@iandx/reactui/component";
-import {ForEach, If, range, useRUIState} from "@iandx/reactui";
-import {Block} from "./block";
+import {ForEach, If, range, uid, useRUIState} from "@iandx/reactui";
+import {MarkdownDocument} from "./block";
 import katex from "katex";
 import {ReactElement, useEffect, useRef} from "react";
-import {ReactUIBase, ReactUIElement} from "@iandx/reactui/core";
 import "katex/dist/katex.css"
 // @ts-ignore latexStyles.js has no @types package
 import * as latex from 'latex.js'
 import {Markdowner} from "../base";
 import {MdOutlineReply} from "react-icons/md"
-import {latexJsHtmlGenerator, IsFirstRender, isInstanceOf} from "../base/utils";
+import {IsFirstRender, isInstanceOf, getLatexJSHtmlGenerator} from "../base/utils";
 
 
-export const blockMaps: {[key:string]: (content: any, props: any, children: any) => MarkdownSyntaxTree[] | ContentType} = {
+export const blockMaps: {[key:string]: (content: any, props: any, children: any) =>  ContentType} = {
     Heading: (content, {headingLevel}) =>
         Span(...inlineElements(content)).fontSize(`${(5 - (headingLevel ?? 1)) * 6 + 15}px`),
     Paragraph: (content) => content,
@@ -27,56 +26,45 @@ export const blockMaps: {[key:string]: (content: any, props: any, children: any)
                 language,
                 style: oneLight
             }),
-    UnorderedListContainer: (_, __, children: MarkdownSyntaxTree[]) =>
+    UnorderedListContainer: (_, __, children: MarkdownAST[]) =>
         Ul(
-            ...children.map((markdownSyntaxTree: MarkdownSyntaxTree) => {
-                    let type = markdownSyntaxTree.type
-                    let content = markdownSyntaxTree.content
-                    let props = markdownSyntaxTree.props
-                    let children = markdownSyntaxTree.children
-                    return (blockMaps as any)[type](content, props, children)
-                }
-            )
+            MarkdownDocument({markdownASTs: children})
         )
+            .width("100%")
             .paddingLeft("10px")
             .marginTop("0px")
             .marginBottom("0px"),
 
-    UnorderedList: (content, _, children: MarkdownSyntaxTree[] | undefined) => {
+    UnorderedList: (content, _, children: MarkdownAST[] | undefined) => {
         if (!!children) {
             return Div(
                 Li(...inlineElements(content)),
-                Block({syntaxTrees: children})
+                MarkdownDocument({markdownASTs: children})
             )
         } else {
             return Li(...inlineElements(content))
         }
     },
 
-    OrderedListContainer: (_, {start}, children: MarkdownSyntaxTree[]) =>
+    OrderedListContainer: (_, {start}, children: MarkdownAST[]) =>
         Ol(
-            ...children.map((markdownSyntaxTree: MarkdownSyntaxTree) => {
-                    let type = markdownSyntaxTree.type
-                    let content = markdownSyntaxTree.content
-                    let props = markdownSyntaxTree.props
-                    let children = markdownSyntaxTree.children
-                    return (blockMaps as any)[type](content, props, children)
-                }
-            )
+            MarkdownDocument({markdownASTs: children})
         ).setProp("start", start)
             .paddingLeft("10px")
             .marginTop("0px")
             .marginBottom("0px"),
 
-    OrderedList: (content, _, children: MarkdownSyntaxTree[] | undefined) =>
-        If(!!children).Then(
+    OrderedList: (content, _, children: MarkdownAST[] | undefined) => {
+        return If(!!children).Then(
             Div(
                 Li(...inlineElements(content)),
-                Block({syntaxTrees: children})
+                MarkdownDocument({markdownASTs: children})
             )
         ).Else(
             Li(...inlineElements(content))
-        ),
+        )
+    }
+        ,
 
     Table: ({header, rows, headerAligns, rowAligns}) =>
         Table(
@@ -89,7 +77,7 @@ export const blockMaps: {[key:string]: (content: any, props: any, children: any)
                         .padding("5px")
                         .textAlign(headerAligns[idx])
                 )
-            )),
+            )).width("100%"),
             // ---- rows
             RUITag("tbody",
                 ...rows.map((row: string[]) =>
@@ -103,13 +91,13 @@ export const blockMaps: {[key:string]: (content: any, props: any, children: any)
                         )
                     )
                 )
-            )
-        )
+            ).width("100%")
+        ).width("100%")
             .borderCollapse("collapse"),
 
-    Blockquote: (content) =>
+    Blockquote: (content, _) =>
         RUITag("blockquote",
-            Block({syntaxTrees: content})
+            MarkdownDocument({markdownASTs: content})
         )
             .borderLeft("2px solid gray")
             .marginLeft("0px")
@@ -125,30 +113,43 @@ export const blockMaps: {[key:string]: (content: any, props: any, children: any)
             .width("100%")
             .height("2px"),
 
-    CheckList: (content, {checkedArr, indentArr}) =>
-        VStack(
-            ...content.map((item: MarkdownSyntaxTree, idx: number) =>
-                HStack(
-                    Span("\t".repeat(indentArr[idx]))
-                        .whiteSpace("pre-wrap"),
-                    Input()
-                        .setProps({
-                            type: "checkbox",
-                            defaultChecked: checkedArr[idx]
-                        }),
-                    ...inlineElements(item)
-                )
+    CheckListContainer: (_, __, children: MarkdownAST[]) =>
+        Div(
+            MarkdownDocument({markdownASTs: children})
+        )
+            .paddingLeft("10px"),
+    CheckList: (content, {isChecked}, children) => {
+        let CheckLi = () =>
+            Div(
+                Input()
+                    .setProps({
+                        type: "checkbox",
+                        defaultChecked: isChecked
+                    }),
+                ...inlineElements(content)
+            ).width("100%")
+        return If(!!children).Then(
+            Div(
+                CheckLi(),
+                MarkdownDocument({markdownASTs: children})
             )
-        ).alignment("leading"),
+        ).Else(
+            CheckLi()
+        )
+    },
+
     Image: (_, {altContent, imageUrl, title, zoomSize, alignment, linkUrl}) => {
         let props = {
             src: imageUrl,
             alt: altContent,
             title: title
         }
-        return HStack(
-            If(alignment==="tailing" || alignment==="center").Then(Spacer()),
-            If(!!linkUrl).Then(
+        let margins: {[key:string]: string} = {
+            "left": "0px auto 0px 0px",
+            "center": "0px auto",
+            "right": "0px 0px 0px auto",
+        }
+        return If(!!linkUrl).Then(
                 A(
                     Img()
                         .setProps(props)
@@ -161,9 +162,10 @@ export const blockMaps: {[key:string]: (content: any, props: any, children: any)
                 Img()
                     .setProps(props)
                     .width(zoomSize)
-            ),
-            If(alignment==="leading" || alignment==="center").Then(Spacer()),
-        )
+            )
+            .display("block")
+            .margin(margins[alignment])
+
     },
     MathBlock: (content) =>
         Div()
@@ -174,55 +176,41 @@ export const blockMaps: {[key:string]: (content: any, props: any, children: any)
                     displayMode: true
                 })
             }),
-    Latex: (content) => {
-        let generator = new latex.HtmlGenerator({
-            hyphenate: false,
-            // styles: ["latexStyles/css/article.css", "latexStyles/css/base.css", "latexStyles/css/book.css", "latexStyles/css/katex.css"]
-            styles: ["https://latex.js.org/css/article.css",
-                "https://latex.js.org/css/base.css",
-                "https://latex.js.org/css/book.css",
-                "https://latex.js.org/css/katex.css"]
-        })
-        return (
+    Latex: (content) =>
             Div()
-                .ref(async function (host: HTMLElement) {
+                .ref(function (host: HTMLElement) {
                     if (host === null) return
                     let latexHtml: string
                     try {
-                        let document = latex.parse(content.replaceAll(/^\n|\n$/g, ""), {generator}).htmlDocument()
+                        let document = latex.parse(content.replaceAll(/^\n|\n$/g, ""), {generator:getLatexJSHtmlGenerator()}).htmlDocument()
                         latexHtml = document.documentElement.innerHTML
                     } catch (e) {
                         latexHtml = "<div style='color:red'>error when parsing LaTex Document</div>"
                     }
-                    // await new Promise(r => setTimeout(r, 2000));
-                    // if (host.shadowRoot === null) {
-                        host.attachShadow({mode: "open"});
-                    // }
+                    host.attachShadow({mode: "open"});
                     host.innerHTML = "";
                     host.shadowRoot!.innerHTML = latexHtml
-                    // host.shadowRoot!.innerHTML = "<div style='color: red'>fjaojdfoiahfohasoi</div>"
-                } as any)
-        )
-    },
-    Footnote: (content,  {noteName, uid}) => {
-        let flatTrees =  Markdowner.ASTHelper?.flatten() ?? []
-        let footnoteTrees = flatTrees.filter(t=>t.type==="Footnote" && (t.props?.noteName??-1)===noteName).map(t=>t.props?.uid ?? "-1")
-        let footnoteIdx = footnoteTrees.indexOf(uid)
-        let footnoteSubTrees = flatTrees.filter(t=>t.type==="FootnoteSup" && (t.props?.noteName??-1)===noteName)
-        
+                } as any),
+    Footnote: (content,  {noteName, footnoteIdx}) => {
+        let footnoteSups = useRUIState([])
+        useEffect(() => {
+            let elements = Array.from(document.getElementsByClassName(`Markdowner-FootnoteSup-${noteName}`))
+            footnoteSups.value = elements.map(el=>el.id)
+        }, [content])
+
         return (
             Span(
                 Span(`[${noteName}]\t`),
                 ...inlineElements(content),
-                ...range(footnoteSubTrees.length).asArray().map((i) =>
+                ...footnoteSups.value.map((id: string) =>
                     A(RUITag(MdOutlineReply))
-                        .setProp("href", `#markdowner-footnoteSup-${noteName}-${i}`)
+                        .setProp("href", `#${id}`)
                         .color("gray")
                         .textDecoration("none")
                 )
             )
                 .fontSize("small")
-                .id(`markdowner-footnote-${noteName}-${footnoteIdx}`)
+                .id(`Markdowner-Footnote-${noteName}-${footnoteIdx}`)
         )
     }
         
@@ -234,8 +222,8 @@ export const blockMaps: {[key:string]: (content: any, props: any, children: any)
 
 
 export const inlineMaps: {[key:string]: (inlineContent: InlineContent, props: any)=>ContentType} = {
-    Text: ({htmlContents}: InlineContent) =>
-        Span(htmlContents),
+    Text: ({ruiContents}: InlineContent) =>
+        Span(...ruiContents),
     Italic: ({ruiContents}: InlineContent) =>
         RUITag("em", ...ruiContents),
     Bold: ({ruiContents}: InlineContent) =>
@@ -278,19 +266,15 @@ export const inlineMaps: {[key:string]: (inlineContent: InlineContent, props: an
                         output: "html"
                     })
             }),
-    FootnoteSup: (_: InlineContent, {noteName, uid}) => {
-        let flatTrees =  Markdowner.ASTHelper?.flatten() ?? []
-        let footnoteSupTrees = flatTrees.filter(t=>t.type==="FootnoteSup" && (t.props?.noteName??-1)===noteName).map(t=>t.props?.uid ?? "-1")
-        let supIndex = footnoteSupTrees.indexOf(uid)
-        return (
-            A(
-                RUITag("sup", `[${noteName}]`).id(`markdowner-footnoteSup-${noteName}-${supIndex}`)
-            )
-                .setProp("href", `#markdowner-footnote-${noteName}-0`)
-                .color("gray")
-                .textDecoration("none")
+    FootnoteSup: (_: InlineContent, {noteName}) => {
+        return  A(
+            RUITag("sup", `[${noteName}]`).className(`Markdowner-FootnoteSup-${noteName}`).id(`Markdowner-FootnoteSup-${noteName}-${uid()}`)
         )
+            .setProp("href", `#Markdowner-Footnote-${noteName}-0`)
+            .color("gray")
+            .textDecoration("none")
     }
+
 
 
 }

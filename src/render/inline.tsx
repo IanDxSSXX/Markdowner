@@ -2,7 +2,7 @@ import {flattened, isInstanceOf} from "../base/utils";
 import {Div, P, RUITag, Span} from "@iandx/reactui/tag";
 import {ReactUIBase, ReactUIElement} from "@iandx/reactui/core";
 import {RUI, RUIElement} from "@iandx/reactui";
-import {MarkdownSyntaxTree} from "../base/syntaxTree";
+import {MarkdownAST} from "../base/syntaxTree";
 import {ReactElement} from "react";
 import {inlineMaps} from "./defaultMaps";
 import {renderToString} from "react-dom/server";
@@ -44,9 +44,8 @@ function contentToHtml(inlineContent: ContentType): string {
     }
 }
 
-function inlineSyntaxTreeToViews(inlineSyntaxTree: MarkdownSyntaxTree): ReactUIBase{
+function inlineSyntaxTreeToViews(inlineSyntaxTree: MarkdownAST): ContentType{
     let children = inlineSyntaxTree.children
-    let mappedElementFunc = (inlineMaps as any)[inlineSyntaxTree.type!]
     let htmlContents: string[]
     let reactContents: ReactElement[]
     let ruiContents: ReactUIBase[]
@@ -58,23 +57,28 @@ function inlineSyntaxTreeToViews(inlineSyntaxTree: MarkdownSyntaxTree): ReactUIB
         ruiContents = [contentToRUIElement(content)]
     } else {
         let contents = children!.map(childTree => inlineSyntaxTreeToViews(childTree))
-        htmlContents = contents.map((c: ReactUIBase)=>contentToHtml(c))
-        reactContents = contents.map((c: ReactUIBase)=>contentToReactElement(c))
-        ruiContents = contents.map((c: ReactUIBase)=>contentToRUIElement(c))
+        htmlContents = contents.map((c: ContentType)=>contentToHtml(c))
+        reactContents = contents.map((c: ContentType)=>contentToReactElement(c))
+        ruiContents = contents.map((c: ContentType)=>contentToRUIElement(c))
     }
 
-    return mappedElementFunc({htmlContents, reactContents, ruiContents}, inlineSyntaxTree.props)
+    let inlineFunc = inlineMaps[inlineSyntaxTree.type!]
+    if (!inlineFunc) {
+        inlineFunc = inlineMaps.Text
+        // console.log(inlineSyntaxTree)
+        console.warn(`Markdowner-render-inline-didn't have a block map named ${inlineSyntaxTree.type!}`)
+    }
+
+    return inlineFunc({htmlContents, reactContents, ruiContents}, inlineSyntaxTree.props)
 }
 
-export function inlineElements(content: MarkdownSyntaxTree | MarkdownSyntaxTree[] | ContentType): ReactUIBase[] {
+export function inlineElements(content: MarkdownAST[] | ContentType): ReactUIBase[] {
     let elements: ReactUIBase[]
-    if (content instanceof Array<MarkdownSyntaxTree>) {
-        elements = content.map((tree: MarkdownSyntaxTree) => {
+    if (content instanceof Array<MarkdownAST>) {
+        elements = content.map((tree: MarkdownAST) => {
             let content: ContentType = inlineSyntaxTreeToViews(tree)
             return contentToRUIElement(content)
         })
-    } else if (Object.hasOwn(content as Object, "type") )  {
-        elements = [contentToRUIElement(inlineSyntaxTreeToViews(content as MarkdownSyntaxTree))]
     } else {
         elements = [
             contentToRUIElement(content as ContentType)

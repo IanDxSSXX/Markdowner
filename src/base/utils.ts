@@ -92,7 +92,21 @@ export function objectEquals(obj1: any, obj2: any) {
 }
 
 
-export const latexJsHtmlGenerator =  new latex.HtmlGenerator({
-    hyphenate: false,
-    styles: ["latexStyles/css/article.css", "latexStyles/css/base.css", "latexStyles/css/book.css", "latexStyles/css/katex.css"]
-})
+export function getLatexJSHtmlGenerator() {
+    let baseUrls = [
+        "https://raw.githubusercontent.com/Ian-Dx/markdowner/master/src/.supports/latexStyles",
+        "https://latex.js.org"
+    ]
+    let styleFileNames = ["article", "base", "book", "katex"]
+    let styles = []
+    for (let baseUrl of baseUrls) {
+        for (let styleFileName of styleFileNames) {
+            styles.push(`${baseUrl}/css/${styleFileName}.css`)
+        }
+    }
+
+    return new latex.HtmlGenerator({
+        hyphenate: false,
+        styles
+    })
+}

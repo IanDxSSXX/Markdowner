@@ -1,8 +1,8 @@
-import {generateBlockSyntaxTree as geneTree, MarkdownAST} from "../base/syntaxTree";
+import {generateMarkdownerAST as geneAST, MarkdownAST} from "../base/syntaxTree";
 import {InlineTagHandler} from "./regex";
 import {inlineDefaultRules, InlineMarkdownRules} from "./rules";
 import {capturingRegExp} from "../base/utils";
-import {uid} from "@iandx/reactui";
+import {uid} from "../base/utils";
 import {C as BC} from "../block/parser"
 
 
@@ -11,28 +11,31 @@ export namespace C {
     const MAX_BASE = 16
     const uuid = uid()
 
-    function generateInlineSyntaxTree(type: string, raw?: string, content?: any, props?: any,
-                                     children?: MarkdownAST[]): MarkdownAST {
-        return geneTree(type, "inline", raw, content, props, children)
-    }
-
     export class MarkdownInlineParser {
         inlineRuleHandlers: InlineTagHandler[] = []
         usedRuleHandlers: InlineTagHandler[] = []
         retriveRegex = new RegExp(`(<I[0-9]{${MAX_BASE}}-[0-9]{${MAX_BASE}}-${uuid}>)`, "g")
         inlineRules: InlineMarkdownRules = {}
         state: {[key:string]:any} = {}
+        geneId = false
 
-        constructor(rules: InlineMarkdownRules = {}, useDefault: boolean = true, newInstance=false) {
+        constructor(inlineRules: InlineMarkdownRules = inlineDefaultRules, geneId=false, newInstance=false) {
             if (newInstance) return
-            let allRules = rules
-            if (useDefault) allRules = {...inlineDefaultRules, ...allRules}
-            this.inlineRules = allRules
-            for (let ruleKey of Object.keys(allRules)) {
-                this.inlineRuleHandlers.push(new InlineTagHandler(ruleKey, allRules[ruleKey], this))
+            this.geneId = geneId
+            this.inlineRules = inlineRules
+            for (let ruleKey of Object.keys(inlineRules)) {
+                this.inlineRuleHandlers.push(new InlineTagHandler(ruleKey, inlineRules[ruleKey], this))
             }
             this.inlineRuleHandlers = this.inlineRuleHandlers.sort((a, b)=>a.order-b.order)
 
+        }
+
+        private generateInlineAST(type: string, raw: string, content: MarkdownAST[] | string | any, props?: any): MarkdownAST {
+            return geneAST(this.geneId, type, "inline", raw, content, props)
+        }
+
+        generateTextAST(text: string) {
+            return this.generateInlineAST("Text", text, text)
         }
 
         private split(content: string): [string, string[][]] {
@@ -62,20 +65,25 @@ export namespace C {
                 if (isMatched) {
                     let storeIdx = +subContent.slice(2, 2+MAX_BASE)
                     let matchedArrIdx = +subContent.slice(3+MAX_BASE, 3+2*MAX_BASE)
-                    let content: string = matchedStore[storeIdx][matchedArrIdx]
+                    let storeContent: string = matchedStore[storeIdx][matchedArrIdx]
                     let rule = this.usedRuleHandlers[storeIdx]
-                    let trimText =  rule.trimText(content)
+                    let trimText =  rule.trimText(storeContent)
 
-                    let childrenSyntaxTrees;
-                    if (this.retriveRegex.test(content)) {
+                    let content;
+
+                    if (this.retriveRegex.test(storeContent)) {
                         if (rule.allowNesting) {
-                            [trimText, childrenSyntaxTrees] = this.retriveMatchedStore(trimText, matchedStore)
+                            [trimText, content] = this.retriveMatchedStore(trimText, matchedStore)
                         } else {
                             trimText = this.retriveMatchedStore(trimText, matchedStore)[0]
+                            content = trimText
                         }
-                    } else if (rule.allowNesting && trimText !== content) {
-                        childrenSyntaxTrees = this.new().parse(trimText)
+                    } else if (rule.allowNesting && trimText !== storeContent) {
+                        content = this.new().parse(trimText)
+                    } else {
+                        content = trimText
                     }
+
 
                     let rawContent = rule.trimedTextAddTag(trimText)
 
@@ -83,7 +91,7 @@ export namespace C {
                     if (rule.useRecheckMatch && !rule.recheckMatch(rawContent)) {
                         let preSyntaxTree = markdownASTs[markdownASTs.length-1]
                         if (!preSyntaxTree || preSyntaxTree.type !== "Text") {
-                            markdownASTs.push(generateInlineSyntaxTree("Text", rawContent, rawContent))
+                            markdownASTs.push(this.generateTextAST(rawContent))
                         } else {
                             preSyntaxTree.raw += rawContent
                             preSyntaxTree.content += rawContent
@@ -91,16 +99,15 @@ export namespace C {
                     } else {
                         // ---- pass recheck add new tree
                         let props = rule.getProps(rawContent)
-                        markdownASTs.push(generateInlineSyntaxTree(
-                            rule.ruleName, rawContent, trimText, props,
-                            childrenSyntaxTrees
+                        markdownASTs.push(this.generateInlineAST(
+                            rule.ruleName, rawContent, content, props,
                         ))
                     }
                     retrivedContent += rawContent
                 } else {
                     let preSyntaxTree = markdownASTs[markdownASTs.length-1]
                     if (!preSyntaxTree || preSyntaxTree.type !== "Text") {
-                        markdownASTs.push(generateInlineSyntaxTree("Text", subContent, subContent))
+                        markdownASTs.push(this.generateTextAST(subContent))
                     } else {
                         // ---- previous didn't pass recheck so merge current to last
                         preSyntaxTree.raw += subContent
@@ -120,7 +127,7 @@ export namespace C {
                 }
             }
 
-            if (this.usedRuleHandlers.length === 0) return [generateInlineSyntaxTree("Text", content, content)]
+            if (this.usedRuleHandlers.length === 0) return [this.generateTextAST(content)]
 
             let [replacedContent, matchedStore] = this.split(content)
             let [_, markdownASTs] = this.retriveMatchedStore(replacedContent, matchedStore)
@@ -130,6 +137,7 @@ export namespace C {
 
         new() {
             let newParser = new MarkdownInlineParser(undefined, undefined, true)
+            newParser.geneId = this.geneId
             newParser.inlineRules = this.inlineRules
             newParser.inlineRuleHandlers = this.inlineRuleHandlers
             return newParser
@@ -137,6 +145,6 @@ export namespace C {
     }
 }
 
-export function MarkdownInlineParser(rules: InlineMarkdownRules={}, useDefault: boolean=true) {
-    return new C.MarkdownInlineParser(rules, useDefault)
+export function MarkdownInlineParser(rules: InlineMarkdownRules={}, useDefault: boolean=true, geneId=false) {
+    return new C.MarkdownInlineParser(rules, useDefault, geneId)
 }

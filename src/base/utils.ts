@@ -1,9 +1,3 @@
-import {RUITag} from "@iandx/reactui/tag";
-import {ReactUIBase} from "@iandx/reactui/core";
-import {useRef} from "react";
-// @ts-ignore latexStyles.js has no @types package
-import * as latex from 'latex.js'
-
 const regexKeywords = ["*", "+", "[", "]", "/", "(", ")", "\\", "^", "?", ":", "$"]
 
 export function correctRegExpKeywords(tag: string | RegExp) {
@@ -22,20 +16,10 @@ export function correctRegExpKeywords(tag: string | RegExp) {
 export function exactRegExp(regexString: string) {
     return new RegExp("^(" + regexString + ")$", "g")
 }
-// ---- split with regexTag
+
 export function flattened(array: any[]) {
     return array.reduce((accumulator:any, value:any) => accumulator.concat(value), [])
 }
-
-export function objectMap(obj: Object, func: Function) {
-    let newObj = {}
-    Object.keys(obj).forEach((key, idx) => {
-        (newObj as any)[key] = func(key, (obj as any)[key], idx)
-    });
-
-    return newObj
-}
-
 
 export function objectValid(obj: Object | undefined | null) {
     return !!obj && Object.keys(obj).length>0
@@ -54,59 +38,46 @@ export function isInstanceOf(obj: any, ...types: any[]) {
     return false
 }
 
-
-export function TextArea(value: string="", disabled=true) {
-    return RUITag("textarea", value)
-        .setProps({value, disabled})
-}
-
-export function percentageToDecimal(percent: string) {
-    return parseFloat(percent) / 100;
-}
-
 export function objectPop(object: any, propertyName: string) {
     let temp = object[propertyName];
     delete object[propertyName];
     return temp;
 }
 
-export function IsFirstRender() {
-    const ref = useRef(true);
-    const firstRender = ref.current;
-    ref.current = false;
-    return firstRender;
-}
 
-
-export function objectEquals(obj1: any, obj2: any) {
-    const equals = (a:any, b:any) => JSON.stringify(a) === JSON.stringify(b);
-
-    const obj1Key = Object.keys(obj1).sort()
-    const obj2Key = Object.keys(obj2).sort()
-
-    if (!equals(obj1Key, obj2Key)) {
-        return false
+export function uid(length: number=6) {
+    let result = '';
+    let characters  = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let charactersLength = characters.length;
+    for ( let i = 0; i < length; i++ ) {
+        result += characters.charAt(Math.floor(Math.random() * charactersLength));
     }
-    const results = obj1Key.map((item) => obj1[item] === obj2[item])
-    return !results.includes(false)
+    return result;
 }
 
 
-export function getLatexJSHtmlGenerator() {
-    let baseUrls = [
-        "https://raw.githubusercontent.com/Ian-Dx/markdowner/master/src/.supports/latexStyles",
-        "https://latex.js.org"
-    ]
-    let styleFileNames = ["article", "base", "book", "katex"]
-    let styles = []
-    for (let baseUrl of baseUrls) {
-        for (let styleFileName of styleFileNames) {
-            styles.push(`${baseUrl}/css/${styleFileName}.css`)
+export class Indexing {
+    static letter(num: number) {
+    let base = "abcdefghijklmnopqrstuvwxyz"
+    let len = base.length
+    let result = ""
+
+    while (num !== 0) {
+        result = base[num%len-1] + result
+        num = Math.floor(num / len)
+    }
+    return result
+}
+
+    static romanNumeral(num: number) {
+        let lookup: {[key:string]:number} = {M: 1000, CM: 900, D: 500, CD: 400, C: 100, XC: 90, L: 50, XL: 40, X: 10, IX: 9, V: 5, IV: 4, I: 1}
+        let roman = ""
+        for (let i in lookup) {
+            while (num >= lookup[i]) {
+                roman += i;
+                num -= lookup[i];
+            }
         }
+        return roman
     }
-
-    return new latex.HtmlGenerator({
-        hyphenate: false,
-        styles
-    })
 }

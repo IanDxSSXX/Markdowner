@@ -1,43 +1,49 @@
-import {inlineDefaultRules, InlineMarkdownRules} from "../inline/rules";
-import {blockDefaultRules, BlockMarkdownRules} from "../block/rules";
+import {DefaultInlineRule, inlineDefaultRules, InlineMarkdownRules} from "../inline/rules";
+import {blockDefaultRules, BlockMarkdownRules, DefaultBLockRule} from "../block/rules";
 import {MarkdownBlockParser, C as BC} from "../block/parser";
 import { renderToString } from 'react-dom/server'
-import {Block} from "../render/block";
 import {
-    generateBlockSyntaxTree,
     MarkdownAST,
 } from "./syntaxTree";
-import {objectPop, objectValid} from "./utils";
-import {uid} from "@iandx/reactui";
+import {uid} from "./utils";
+import {MarkdownDocument, MarkdownerViewBase} from "../render/view";
+import {ASTHelper, MarkdownerHelper, RuleAdder, RuleDropper} from "./helper";
+import {defaultBlockMap, defaultInlineMap, MarkdownerRuleMap, MarkdownerViewFunc} from "../render/ruleMap";
+import {Div} from "@iandx/reactui/tag";
 
 export namespace C {
     interface MarkdownerProps {
-        inlineRules?: InlineMarkdownRules
-        blockRules?: BlockMarkdownRules
         tabSpaceNum?: number
-        useDefault?: boolean
-        listStrictIndent?: boolean
         softBreak?: boolean
         geneId?: boolean
     }
     export class Markdowner {
         blockParser?: BC.MarkdownBlockParser
-        ASTHelper: SyntaxTreeHelper
+        ast: ASTHelper
+        dropRule: RuleDropper
+        addRule: RuleAdder
         markdownerProps: MarkdownerProps = {}
+        inlineRules: InlineMarkdownRules = inlineDefaultRules
+        inlineRuleMap: MarkdownerRuleMap = defaultInlineMap
+        blockRules: BlockMarkdownRules = blockDefaultRules
+        blockRuleMap: MarkdownerRuleMap = defaultBlockMap
 
         constructor() {
-            this.ASTHelper = new SyntaxTreeHelper(this)
+            this.ast = new ASTHelper(this)
+            this.dropRule = new RuleDropper(this)
+            this.addRule = new RuleAdder(this)
         }
 
-        init({inlineRules, blockRules, tabSpaceNum, useDefault, listStrictIndent, softBreak, geneId}:MarkdownerProps={}) {
-            this.markdownerProps = {inlineRules, blockRules, tabSpaceNum, useDefault, listStrictIndent, softBreak, geneId}
-            this.blockParser = MarkdownBlockParser(blockRules, useDefault, inlineRules, tabSpaceNum, listStrictIndent, softBreak, geneId)
+        init(props:MarkdownerProps={}) {
+            this.markdownerProps = props
+            let {tabSpaceNum, softBreak, geneId} = props
+            this.blockParser = MarkdownBlockParser(this.blockRules, this.inlineRules, tabSpaceNum, softBreak, geneId)
             return this
         }
 
         parseInline(content: string) {
             if (!this.blockParser) {
-                console.warn("markdowner-you should initialize markdowner by [Markdowner.init()] first")
+                MarkdownerHelper.warn("ParseInline", "You should initialize markdowner by (Markdowner.init()) first")
                 return content
             }
 
@@ -46,11 +52,11 @@ export namespace C {
 
         parse(content: string): MarkdownAST[] {
             if (!this.blockParser) {
-                console.warn("markdowner-you should initialize markdowner by [Markdowner.init()] first")
-                return [{id: uid(), type: "error", level: "block"}]
+                MarkdownerHelper.warn("Parse", "You should initialize markdowner by (Markdowner.init()) first")
+                return [{id: uid(), type: "Paragraph", level: "block", raw: "Error", content: "you should initialize markdowner by [Markdowner.init()] first"}]
             }
             let trees = this.blockParser!.new().parse(content)
-            this.ASTHelper.trees = trees
+            this.ast.trees = trees
 
             return trees
         }
@@ -60,102 +66,19 @@ export namespace C {
         }
 
         render(content: string) {
-            let markdownASTs = this.parse(content)
-            let htmlContent = renderToString(Block({markdownASTs}).asReactElement())
-            return htmlContent
+            return renderToString(this.View({content}))
         }
 
-    }
-
-    class SyntaxTreeHelper {
-        trees: MarkdownAST[] = []
-        markdowner: Markdowner
-
-        constructor(markdowner: Markdowner) {
-            this.markdowner = markdowner
-        }
-
-        flatten(willParseContent=false) {
-            let currTrees = this.trees!
-            if (willParseContent) {
-                currTrees = this.parseASTContents(currTrees)
-            }
-            let flatTrees: MarkdownAST[] = []
-            let newASHelper = new SyntaxTreeHelper(this.markdowner)
-            for (let tree of currTrees) {
-                flatTrees.push(tree)
-                if (!!tree.children) {
-                    newASHelper.trees = tree.children
-                    flatTrees.push(...newASHelper.flatten())
-                }
-                if (tree.level==="block" && tree.content instanceof Array<MarkdownAST>) {
-                    newASHelper.trees = tree.content
-                    flatTrees.push(...newASHelper.flatten())
-                }
-            }
-
-            return flatTrees
-        }
-
-        incrementalParse(content: string): MarkdownAST[] {
-            this.markdowner.init({...this.markdowner.markdownerProps, geneId:true})
-            let preTrees = this.trees
-            let currTrees = this.markdowner.parse(content)
-
-            if (currTrees.length === 1 && currTrees[0].type === "error") return currTrees
-
-            let preTreesNoId = this.dropId(preTrees)
-            let currTreesNoId = this.dropId(currTrees)
-            let preTreesNoIdString = preTreesNoId.map(tree=>JSON.stringify(tree))
-            let currTreesNoIdString = currTreesNoId.map(tree=>JSON.stringify(tree))
-
-            for (let [idx, currTreeNoIdString] of currTreesNoIdString.entries()) {
-                let indexInPreTrees = preTreesNoIdString.indexOf(currTreeNoIdString)
-                if (indexInPreTrees !== -1) {
-                    // ---- pre tree contain the new tree, assign the pre id to it's
-                    preTreesNoIdString[indexInPreTrees] = "used"
-                    currTrees[idx].id = preTrees[indexInPreTrees].id
-                }
-            }
-
-            return currTrees
-        }
-
-        dropId(trees: MarkdownAST[]) {
-            let treesString = JSON.stringify(trees)
-            treesString = treesString.replaceAll(
-                /{"id":".+?","type":/g,
-            '{"type":')
-            return JSON.parse(treesString) as MarkdownAST[]
-        }
-
-        parseSingleASTContent(markdownAST: MarkdownAST): MarkdownAST[] {
-            let text = markdownAST.content
-
-            let parseContent: any
-            let ruleHandler = this.markdowner.blockParser!.blockRuleHandlers.filter(h => h.ruleName === markdownAST.type.replaceAll("Container", ""))
-            if (ruleHandler.length === 1) {
-                if (markdownAST.type.endsWith("Container")) {
-                    parseContent = (text: string) => ruleHandler[0].parseContainerContent(text)
-                } else {
-                    parseContent = (text: string) => ruleHandler[0].parseContent(text)
-                }
-            } else {
-                parseContent = (text: string) => this.markdowner.blockParser!.inlineParser!.new().parse(text)
-            }
-
-            return parseContent(text)
-        }
-        
-        parseASTContents(markdownASTs: MarkdownAST[]): MarkdownAST[] {
-            let newASTs: MarkdownAST[] = []
-            for (let ast of markdownASTs) {
-                newASTs.push({...ast, content:this.parseSingleASTContent(ast)})
-            }
-           return newASTs
+        View({content, incrementalParse}: {content:string, incrementalParse?:boolean}) {
+            let markdownASTs = incrementalParse??false ? this.parse(content) : this.ast.incrementalParse(content)
+            MarkdownerViewBase.init(this.blockRuleMap, this.inlineRuleMap)
+            console.log(markdownASTs)
+            return  Div(
+                MarkdownDocument({markdownASTs, isDocument: true})
+            ).className("Markdowner-Document-root").asReactElement()
         }
     }
 
 }
 export const Markdowner = new C.Markdowner()
-
+export const MarkdownerView = (props: {content:string, incrementalParse?:boolean}) => Markdowner.View(props)

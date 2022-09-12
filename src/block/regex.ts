@@ -2,6 +2,7 @@ import {correctRegExpKeywords} from "../base/utils";
 import {inlineDefaultRules, InlineMarkdownRules} from "../inline/rules";
 import {MarkdownInlineParser} from "../inline/parser";
 import {C} from "./parser";
+import {MarkdownerHelper} from "../base/helper";
 
 // ---- declaring
 export type BlockMarkdownTagType = string | RegExp
@@ -16,12 +17,10 @@ export interface BlockMarkdownTag {
 export interface BlockMarkdownTagExtend {
     tags: BlockMarkdownTag
     getProps?: ((raw: string, state: {[key:string]: any}, handler: BlockTagHandler) => any | ((raw: string, state: {[key:string]: any}, handler: BlockTagHandler) => any)[])
-    getContainerProps?: ((raw: string, state: {[key:string]: any}, handler: BlockTagHandler) => any | ((raw: string, handler: BlockTagHandler) => any)[])
     trimText?: (raw: string, ...args: any) => string
     recheckMatch?: ((raw: string) => boolean | ((raw: string) => boolean)[])
     order?: number
     parseContent?: (text: string, handler: BlockTagHandler) => any
-    parseContainerContent?: (text: string, handler: BlockTagHandler) => any
     blockType?: "container" | "leaf"
 }
 
@@ -73,7 +72,7 @@ export class BlockTagHandler {
             this.blockType = "container"
             // ---- only support leading
             if (!tagExtend.tags.leading || !!tagExtend.tags.round || !!tagExtend.tags.wrap || !!tagExtend.tags.exact) {
-                console.warn(`Markdowner-block: container block [${this.ruleName}] only support leading tags`)
+                MarkdownerHelper.warn("Block-tag", `container block [${this.ruleName}] only support leading tags`)
             }
         }
 
@@ -94,7 +93,6 @@ export class BlockTagHandler {
             }
         }
         if (!!tagExtend.parseContent) this.parseContent = (text: string) => tagExtend.parseContent!(text, this)
-        if (!!tagExtend.parseContainerContent) this.parseContainerContent = (text: string) => tagExtend.parseContainerContent!(text, this)
         if (!!tagExtend.getProps) this.getProps = (text: string) => {
             let getPropsArr: any = tagExtend.getProps
             if (!(tagExtend.getProps! instanceof Array)) getPropsArr = [getPropsArr]
@@ -103,15 +101,6 @@ export class BlockTagHandler {
                 props = {...props, ...getPropsFunc(text, this.parser.state, this)}
             }
             // ---- block extend props using [blockProp={}]
-            return props
-        }
-        if (!!tagExtend.getContainerProps) this.getContainerProps = (text: string) => {
-            let getPropsArr: any = tagExtend.getContainerProps
-            if (!(tagExtend.getContainerProps! instanceof Array)) getPropsArr = [getPropsArr]
-            let props = {}
-            for (let getPropsFunc of getPropsArr) {
-                props = {...props, ...getPropsFunc(text, this.parser.state, this)}
-            }
             return props
         }
     }
@@ -131,19 +120,19 @@ export class BlockTagHandler {
         // ---* parse multiline [T]text[T]
         for (let tag of (this.tags.round! ?? []) as Array<BlockMarkdownTagType>) {
             let regexTag = correctRegExpKeywords(tag)
-            regexArray.push(`(?:(?<=\\n|^)${regexTag}(?:.|\\n)+?${regexTag}(?:\\n|$))`)
+            regexArray.push(`(?:(?:\\n|^)${regexTag}(?:.|\\n)+?${regexTag}(?=\\n|$))`)
         }
         // // ---* parse multiline [T]text[/T]
         for (let [leftTag, rightTag] of (this.tags.wrap! ?? []) as Array<[BlockMarkdownTagType, BlockMarkdownTagType]>) {
             let regexLeftTag = correctRegExpKeywords(leftTag)
             let regexRightTag = correctRegExpKeywords(rightTag)
-            regexArray.push(`(?:(?<=\\n|^)${regexLeftTag}(?:.|\\n)+?${regexRightTag}(?:\\n|$))`)
+            regexArray.push(`(?:(?:\\n|^)${regexLeftTag}(?:.|\\n)+?${regexRightTag}(?=\\n|$))`)
         }
         // ---* parse single line [T]text
         //      special for leading, because it doesn't have an end symbol
         for (let tag of (this.tags.leading! ?? []) as Array<BlockMarkdownTagType>) {
             let regexTag = correctRegExpKeywords(tag)
-            regexArray.push(`(?:(?<=\\n|^)${regexTag}.+?(?:\\n|$))`)
+            regexArray.push(`(?:(?:\\n|^)${regexTag}.+(?=\\n|$))`)
         }
 
         // ---* parse [T]
@@ -191,7 +180,7 @@ export class BlockTagHandler {
                 let blockProp = JSON.parse(blockPropString)
                 return [{blockProp}, trimedText]
             } catch (e) {
-                console.warn(`Markdowner-getProp: ${blockPropString} is not valid as a json blockProp, treat is as a string`)
+                MarkdownerHelper.warn("Block-getProp", `${blockPropString} is not valid as a json blockProp, treat is as a string`)
                 return [{blockProp: blockPropString}, trimedText]
             }
         }

@@ -1,9 +1,12 @@
 import {InlineMarkdownTagExtend, InlineMarkdownTag} from "./regex";
-import {uid} from "@iandx/reactui";
+import {uid} from "../base/utils";
 
 export interface InlineMarkdownRules {
     [key: string]: InlineMarkdownTag | InlineMarkdownTagExtend
 }
+
+export type DefaultInlineRule = "Italic" | "Bold" | "Strike" | "Underline" | "Code" | "Link" | "Escape" | "Superscript" |
+    "Subscript" | "Highlight" | "HtmlTag" | "Math" | "FootnoteSup" | "LinkTag"
 
 export const inlineDefaultRules: InlineMarkdownRules = {
     // ---- the order doesn't matter, default order is 1
@@ -11,7 +14,7 @@ export const inlineDefaultRules: InlineMarkdownRules = {
         tags: {
             round: "[em]",
             exact: [
-                /\*(?!\s)(?:(?:[^\*]*?(?:\*\*[^\*]+?\*\*[^\*]*?)+?)+?|[^\*]+)(?<!\s)\*/,
+                /\*(?!\s)(?:(?:[^*]*?(?:\*\*[^*]+?\*\*[^*]*?)+?)+?|[^*]+)\*/,
             ]
         },
         trimText: (text: string) => text.replace(/^\*|\*$/g, ""),
@@ -20,7 +23,7 @@ export const inlineDefaultRules: InlineMarkdownRules = {
         tags: {
             round: "[bold]",
             exact: [
-                /\*\*(?!\s)(?:[^\*]+?|(?:[^\*]*(?:\*[^\*]+\*[^\*]*)+?)+?)(?<!\s)\*\*/,
+                /\*\*(?!\s)(?:[^*]+?|(?:[^*]*(?:\*[^*]+\*[^*]*)+?)+?)\*\*/,
             ]
         },
         trimText: (text: string) => text.replace(/^\*\*|\*\*$/g, ""),
@@ -40,7 +43,7 @@ export const inlineDefaultRules: InlineMarkdownRules = {
         getProps: (text: string) => ({linkUrl: text.match(/\(.+?\)$/)![0].replaceAll(/[()]/g, "")}),
     },
     Escape: {
-        tags: {exact: /\\[*~<>_=`$]/},
+        tags: {exact: /\\[*~<>_=`$\\]/},
         trimText: text => text.replace("\\", ""),
         order: -1000 // ---- must be the first
     },
@@ -64,8 +67,15 @@ export const inlineDefaultRules: InlineMarkdownRules = {
         tags: {wrap: ["[^", "]"]},
         getProps: (text) => {
             let noteName = text.replaceAll(/[[\]^]/g, "")
-            return {noteName}
+            return {noteName, footnoteSupId: uid()}
         },
-        order: 0
-    }
+        order: -2,
+        allowNesting: false
+    },
+    LinkTag: {
+        tags: {wrap: ["[", "]"]},
+        order: -1,
+        getProps: raw => ({tagName: raw.replaceAll(/[[\]]/g, "").trim()})
+    },
+
 }

@@ -1,30 +1,27 @@
 import {objectValid} from "./utils";
-import {uid} from "@iandx/reactui";
-import {f} from "@iandx/reactui/ReactUITheme-48edfbd4";
+import {uid} from "../base/utils";
+
+export interface ContainerItem {
+    item: MarkdownAST[] | any
+    content: MarkdownAST[]
+}
 
 export interface MarkdownAST {
     id?: string
     type: string
     level: "block" | "inline"
-    raw?: string
-    content?: any
-    children?: MarkdownAST[]
+    raw: string
+    content: MarkdownAST[] | ContainerItem[] | string | any
     props?: any
 }
 
 
-export function generateBlockSyntaxTree(type: string, level: "block"|"inline", raw?: string, content?: any, props?: any,
-                                 children?: MarkdownAST[], geneId?: boolean): MarkdownAST {
-    let syntaxTree: MarkdownAST
-    if (geneId ?? false) {
-        syntaxTree = {id: uid(), type, level}
-    } else {
-        syntaxTree = {type, level}
-    }
-    if (raw !== undefined) syntaxTree.raw = raw
-    if (content !== undefined) syntaxTree.content = content
+export function generateMarkdownerAST(geneId: boolean, type: string, level: "block"|"inline", raw: string,
+                                      content: string|MarkdownAST[]|ContainerItem[]|any, props?: any): MarkdownAST {
+    let syntaxTree: MarkdownAST = {type, level, raw, content}
     if (objectValid(props)) syntaxTree.props = props
-    if (!!children) syntaxTree.children = children
+    if (geneId) syntaxTree.id = uid()
+
     return syntaxTree
 }
 

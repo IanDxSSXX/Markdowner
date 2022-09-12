@@ -1,8 +1,7 @@
 import {Markdowner} from "./index";
 import MarkdownIt from "markdown-it";
-import {Lexer} from "marked";
+import {Lexer, marked} from "marked";
 import {range} from "@iandx/reactui";
-import {totalTime} from "../block/parser";
 
 
 Markdowner.init()
@@ -19,7 +18,7 @@ async function fileReader(blob: any) {
 
 export async function readMDFile(fileName: string) {
     let contentBase = ""
-    await fetch(`mdBenchmarkFiles/${fileName}.md`)
+    await fetch(`http://localhost:3000/mdBenchmarkFiles/${fileName}.md`)
         .then(res => res.blob())
         .then(async (blob) =>  {
             contentBase = await fileReader(blob)
@@ -36,28 +35,46 @@ function calTime(func: () => any) {
     return t2-t1
 }
 
-async function mdTextIter(fileName="test1", repeatNum=1) {
+async function mdIterParse(fileName="test1", repeatNum=1) {
     let content = (await readMDFile(fileName)).repeat(repeatNum)
-
     let markdownerTime = calTime(() => {
-        Markdowner.new().parse(content)
+        let a = Markdowner.parse(content)
     })
 
     let markdownItTime = calTime(() => {
-        (new MarkdownIt()).parse(content, {});
+        let b = (new MarkdownIt()).parse(content, {});
     })
 
     let markedTime = calTime(() => {
-        new Lexer().lex(content)
+        let c = new Lexer().lex(content)
     })
 
     return [markdownerTime, markdownItTime, markedTime]
 }
 
-async function benchmarkSingleFile(fileName:string, iterations=1000, repeatNum=1) {
+async function mdIterRender(fileName="test1", repeatNum=1) {
+    let content = (await readMDFile(fileName)).repeat(repeatNum)
+    let markdownerTime = calTime(() => {
+        let a = Markdowner.render(content)
+    })
+
+    let markdownItTime = calTime(() => {
+        let b = (new MarkdownIt()).render(content, {});
+    })
+
+    let markedTime = calTime(() => {
+        let c = marked.parse(content)
+    })
+
+    return [markdownerTime, markdownItTime, markedTime]
+}
+
+
+async function benchmarkSingleFile(fileName:string, iterations=1000, repeatNum=1, testType:"render"|"parse"="parse") {
     let markdownerTimes=[], markdownItTimes=[], markedTimes=[]
+    let iterFunc = testType === "parse" ? mdIterParse : mdIterRender
     for (let _ of range(iterations).asArray()) {
-        let [markdownerTime, markdownItTime, markedTime] = await mdTextIter(fileName, repeatNum)
+        let [markdownerTime, markdownItTime, markedTime] = await iterFunc(fileName, repeatNum)
         markdownerTimes.push(markdownerTime)
         markdownItTimes.push(markdownItTime)
         markedTimes.push(markedTime)
@@ -78,19 +95,19 @@ async function benchmarkSingleFile(fileName:string, iterations=1000, repeatNum=1
 
 export async function benchmark() {
     console.log("start testing")
-    let iterations = 50, repeatTimes = 10
+    let iterations = 1, repeatTimes = 100, testType:"render"|"parse"="parse"
     let tableResult = 
 `| file           | markdowner | markdown-it | marked  |
 | -------------- | ---------- | ----------- | ------- |
 `
-    tableResult += await  benchmarkSingleFile("fullFeatures", iterations, repeatTimes)
-    tableResult += await  benchmarkSingleFile("heading", iterations, repeatTimes)
-    tableResult += await  benchmarkSingleFile("list", iterations, repeatTimes)
-    tableResult += await  benchmarkSingleFile("blockQuote", iterations, repeatTimes)
-    tableResult += await  benchmarkSingleFile("codeBlock", iterations, repeatTimes)
-    tableResult += await  benchmarkSingleFile("table", iterations, repeatTimes)
-    tableResult += await  benchmarkSingleFile("footnote", iterations, repeatTimes)
-    tableResult += await  benchmarkSingleFile("checkList", iterations, repeatTimes)
-    tableResult += await  benchmarkSingleFile("inline", iterations, repeatTimes)
+    tableResult += await  benchmarkSingleFile("fullFeatures", iterations, repeatTimes, testType)
+    // tableResult += await  benchmarkSingleFile("heading", iterations, repeatTimes, testType)
+    // tableResult += await  benchmarkSingleFile("list", iterations, repeatTimes, testType)
+    // tableResult += await  benchmarkSingleFile("blockQuote", iterations, repeatTimes, testType)
+    // tableResult += await  benchmarkSingleFile("codeBlock", iterations, repeatTimes, testType)
+    // tableResult += await  benchmarkSingleFile("table", iterations, repeatTimes, testType)
+    // tableResult += await  benchmarkSingleFile("footnote", iterations, repeatTimes, testType)
+    // tableResult += await  benchmarkSingleFile("checkList", iterations, repeatTimes, testType)
+    // tableResult += await  benchmarkSingleFile("inline", iterations, repeatTimes)
     console.log(tableResult)
 }

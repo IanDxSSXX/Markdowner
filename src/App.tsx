@@ -1,106 +1,74 @@
-import React, {useEffect, useRef} from 'react';
-import {MarkdownInlineParser} from "./inline/parser";
-import {Lexer, marked} from "marked";
-import {Div, RUITag} from "@iandx/reactui/tag";
 import {HStack, VStack, Text} from "@iandx/reactui/component";
-import {range, useRUIState} from "@iandx/reactui";
-import {Markdowner, C} from "./base";
-import {MarkdownerDocument} from "./render";
-import MarkdownIt from "markdown-it"
-import {MarkdownAST} from "./base/syntaxTree";
-import {benchmark, readMDFile} from "./base/benchmark";
-import { renderToString } from 'react-dom/server'
-import katex from "katex"
-// @ts-ignore
-import * as latex from 'latex.js'
-
-function test() {
-    let content =
-`hhh
-# heading
-plain text 1
-* list1
-  * list11
-continue list11
-  * list12
-  
-  plain text3
-* list2
-continue list2
-# heading2
-plain text 4
-continue plain text\\
-plain text 5  
-plain text 6
-`
-    console.log(content)
-    // console.log("fuck",/(?:(?<=\n|^) *\* .+?(?:\n|$))/g.test("  * list11\\n"))
-
-    let out = Markdowner.parse(content)
-    console.log(out)
-    //
-    // let arr = range(5000000).asArray()
-    // let a,b
-    // let t1,t2
-    // t1 = performance.now()
-    // for (let i of arr) {
-    //     a =i
-    //     b=i
-    // }
-    // t2 = performance.now()
-    // console.log(t2-t1)
-
-}
-Markdowner.init({softBreak: true, willParseContent:false})
+import {range, useRUIState, RUITag, RUI, RUIElement} from "@iandx/reactui";
+import {Markdowner, MarkdownerView} from "./base";
+import {Div, Span} from "@iandx/reactui/tag";
+import {benchmark} from "./base/benchmark";
+import {InlineElements, InlineRUIElements} from "./render/view";
 
 
+
+Markdowner.init({softBreak: false})
+Markdowner.dropRule.block(["Heading"])
+Markdowner.addRule.block({
+    name: "Heading",
+    rule: {
+        tags: {
+            leading: /#{1,5} /,
+            exact: [/(?:\n|^).+?\n===+ */, /(?:\n|^).+? ?\n---+ */]
+        },
+        getProps: (raw) => {
+            let headingLevel: number
+            let hashHeadingMatch = raw.match(/^#+ /)
+            if (hashHeadingMatch) {
+                headingLevel = hashHeadingMatch![0].trim().length
+            } else {
+                let heading1Match = raw.match(/\n===+/)
+                headingLevel = !!heading1Match ? 1 : 2
+            }
+            return {headingLevel}
+        },
+        trimText: raw => raw.replaceAll(/\n((===+)|(---+))/g, "").replaceAll(/^#{1,5} /g, ""),
+        parseContent: text => text,
+        recheckMatch: raw => {
+            return true
+        },
+        blockType: "leaf"
+    },
+    view: (content: any, {headingLevel, blockProp}) =>
+        Span(content+(!!blockProp ? blockProp.a:"")).fontSize(`${(5 - (headingLevel ?? 1)) * 6 + 15}px`)
+})
 
 
 function App() {
     // benchmark()
-    // test()
-    readMDFile("fullFeatures").then(content => {
-        // let trees = Markdowner.new({willParseContent:false}).parse(content)
-        // console.log(trees)
-    })
-
-    let markdownASTs = useRUIState([])
+    let content = useRUIState("")
     return (
       HStack(
-          RUITag("textarea")
+          RUITag("textarea")()
               .onChange((e)=>{
-                  let content = (e.target as any).value
-                  let t1,t2
-                  t1 = performance.now()
-                  let trees = Markdowner.ASTHelper.incrementalParse(content)
-                  t2 = performance.now()
-                    console.log(t2-t1)
-                  t1 = performance.now()
-                  let a2 = Markdowner.new().ASTHelper.incrementalParse(content)
-                  t2 = performance.now()
-                  console.log(t2-t1)
-                  console.log(a2)
-
-                  markdownASTs.value = trees
-                  // console.log(Markdowner.new().parse(content))
+                  content.value = (e.target as any).value
               })
               .height("100%")
-              .width("46%")
+              .width("48%")
               .padding("20px")
               .outline("none")
               .border("1px solid gray"),
 
-          MarkdownerDocument({markdownASTs: markdownASTs.value})
+          Div(
+              // RUITag(MarkdownerView)()
+                  <MarkdownerView content={content.value} incrementalParse={true}/>
+                  // .setProps({content: content.value, incrementalParse: true})
+          )
               .height("100%")
-              .width("46%")
+              .width("48%")
               .padding("20px")
               .border("1px solid gray")
               .overflow("scroll")
-
       )
-          .width("96%")
-          .height("800px")
-          .margin("%2")
+          .position("fixed")
+          .width("90%")
+          .height("90vh")
+          .padding("2vh 2%")
           .asReactElement()
     )
 }

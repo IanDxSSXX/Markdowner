@@ -1,21 +1,18 @@
 import {BlockMarkdownTagExtend, BlockMarkdownTag, hardLineBreakRegex, BlockTagHandler} from "./regex";
-import {tab} from "@testing-library/user-event/dist/tab";
 import {flattened} from "../base/utils";
-import {uid} from "@iandx/reactui";
 
 export interface BlockMarkdownRules {
     [key: string]: BlockMarkdownTag | BlockMarkdownTagExtend
 }
 
+export type DefaultBLockRule = "Heading" | "OrderedList" | "UnorderedList" | "Blockquote" | "CodeBlock" | "Table" | "Divider" |
+    "CheckList" | "Image" | "MathBlock" | "Latex" | "Footnote" | "LinkTagBlock" | "Comment"
+
 export const blockDefaultRules: BlockMarkdownRules = {
-    NewLine: {
-        tags: {exact: /(?<=^|\n| {2} *|\\)\n/},
-        order: 1000
-    },
     Heading: {
         tags: {
             leading: /#{1,5} /,
-            exact: [/(?<=^|\n).+? ?\n===+ *(?:\n|$)/, /(?<=^|\n).+? ?\n---+ *(?:\n|$)/]
+            exact: [/(?:\n|^).+? ?\n===+ */, /(?:\n|^).+? ?\n---+ */]
         },
         getProps: (text) => {
             let headingLevel: number
@@ -23,8 +20,8 @@ export const blockDefaultRules: BlockMarkdownRules = {
             if (hashHeadingMatch) {
                 headingLevel = hashHeadingMatch![0].trim().length
             } else {
-                let heading1Match = text.match(/\n===+}/)
-                headingLevel = heading1Match ? 1 : 2
+                let heading1Match = text.match(/\n===+/)
+                headingLevel = !!heading1Match ? 1 : 2
             }
             return {headingLevel}
         },
@@ -32,7 +29,7 @@ export const blockDefaultRules: BlockMarkdownRules = {
     },
     OrderedList: {
         tags: {leading: /(?: {2})*[0-9]\. /},
-        getContainerProps: (text) => ({start: +text.match(/\d+/g)![0]}),
+        getProps: (text) => ({start: +text.match(/\d+/g)![0]}),
         blockType: "container"
     },
     UnorderedList: {
@@ -40,11 +37,10 @@ export const blockDefaultRules: BlockMarkdownRules = {
         blockType: "container"
     },
     Blockquote: {
-        tags: {exact: /(?<=\n|^)(?:(?:> *)+ .+?(?:\n|$))+/},
+        tags: {exact: /(?:\n|^)(?:(?:> *)+ .+?(?:\n|$))*(?:> *)+ .+?(?=\n|$)/},
         parseContent: (text, handler) => {
-            let newText = text.replaceAll(/(?<=^|\n)> */g, "")
+            let newText = text.replaceAll(/\n> */g, "\n").replaceAll(/^> */g, "")
             let parser = handler.parser.new()
-
             return parser.parse(newText)
         }
     },
@@ -107,7 +103,7 @@ export const blockDefaultRules: BlockMarkdownRules = {
     },
     Divider: {
         tags: {exact: /---{1,4}(?:\[(?:dashed|dotted|solid)])?/},
-        order: 2, // ---- behind heading2
+        order: 2, // ---- behind heading1
         getProps: text => ({dividerType: (text.match(/dashed|dotted|solid/) ?? ["solid"])[0]})
     },
     CheckList: {
@@ -125,7 +121,7 @@ export const blockDefaultRules: BlockMarkdownRules = {
             if (/^\[!\[.+?]\(.+?(?: .+?)*? *\)]\(.+?\)$/.test(text)) {
                 // ---- with link
                 linkUrl = text.match(/\(.+?\)$/)![0].replaceAll(/[()]/g, "")
-                text = text.replaceAll(/^\[|(?<=]\(.+\))]\(.+?\)$/g, "")
+                text = text.replaceAll(/^\[|\([^\]]+?\)$/g, "")
             }
             let altContent = text.match(/!\[.+?]/)![0].replaceAll(/[![\]]/g, "")
             let content: string = text.match(/\(.+?(?: .+?)*\)/)![0].replaceAll(/[()]/g, "")
@@ -143,11 +139,11 @@ export const blockDefaultRules: BlockMarkdownRules = {
     },
     MathBlock: {
         tags: {round: "$$"},
-        parseContent: (text) => text.replace(/^\$\$|\$\$$/g, "")
+        parseContent: (text) =>  text
     },
     Latex: {
         tags: {round: "$$$"},
-        parseContent: (text) => text.replace(/^\$\$\$|\$\$\$$/g, ""),
+        parseContent: (text) => text.replaceAll(/^\n|\n$/g, ""),
         order: -1
     },
     Footnote: {
@@ -169,7 +165,20 @@ export const blockDefaultRules: BlockMarkdownRules = {
                 rerender: true
             }
         },
-
+    },
+    LinkTagBlock: {
+        tags: {leading: /\[.+?]:/},
+        order: 2,
+        getProps: raw => ({
+            tagName: raw.match(/\[.+?]/)![0].replaceAll(/[[\]]/g, "").trim(),
+            tagUrl: raw.replace(/\[.+?]:/, "").trim(),
+            visible: false
+        })
+    },
+    Comment: {
+        tags: {leading: /\/\//},
+        getProps: ()=>({visible: false})
     }
+
 
 }

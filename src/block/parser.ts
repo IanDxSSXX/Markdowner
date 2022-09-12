@@ -1,4 +1,4 @@
-import {generateBlockSyntaxTree as geneTree, MarkdownAST} from "../base/syntaxTree";
+import {ContainerItem, generateMarkdownerAST as geneAST, MarkdownAST} from "../base/syntaxTree";
 import {
     BlockMarkdownTagExtend,
     BlockMarkdownTagType,
@@ -8,28 +8,19 @@ import {
 import {blockDefaultRules, BlockMarkdownRules} from "./rules";
 import {capturingRegExp, correctRegExpKeywords, objectValid} from "../base/utils";
 import {inlineDefaultRules, InlineMarkdownRules} from "../inline/rules";
-import {uid} from "@iandx/reactui";
 import {C as IC, MarkdownInlineParser} from "../inline/parser"
 import {InlineTagHandler} from "../inline/regex";
-import {Block} from "../render/block";
-
-export let totalTime = 0
-let t1, t2
-let calTime = (t1:number, t2:number) => {
-    totalTime += t2-t1
-}
-const now = ()=> performance.now()
 
 
 export namespace C {
-
     interface BlockAST {
         type: string
         raw: string
-        isContainerItem?: boolean
+        isContainer: boolean
         rule?: BlockTagHandler
         containerLevel?: number
-        children: BlockAST[]
+        containerItems?: { item:BlockAST, content:BlockAST[] }[]
+        level?: number
     }
     function trimNewLine(content: string) {
         return content.replace(new RegExp(`(^\\n)|(\\n$)`), "").trimEnd()
@@ -43,11 +34,6 @@ export namespace C {
         newContent = newContent.replaceAll('\u00A0', " ")
 
         return newContent
-    }
-
-    function generateBlockSyntaxTree(type: string, raw?: string, content?: any, props?: any,
-                                     children?: MarkdownAST[], geneId?:boolean): MarkdownAST {
-        return geneTree(type, "block", raw, content, props, children, geneId)
     }
 
 
@@ -65,40 +51,54 @@ export namespace C {
             return this.containers[this.containers.length-1]
         }
         get lastChild() {
-            return this.lastContainer.children![this.lastContainer.children!.length-1]
+            return this.lastContainer.containerItems![this.lastContainer.containerItems!.length-1]
         }
-        
+
         open(blockAST: BlockAST) {
             this.containers.push({
-                type: blockAST.type + "Container",
+                type: blockAST.type,
                 raw: blockAST.raw,
                 rule: blockAST.rule,
-                children: [blockAST]
+                isContainer: true,
+                level: blockAST.level,
+                containerItems: [{
+                    item: blockAST,
+                    content: []
+                }]
             })
         }
-        close(blockASTs: BlockAST[]): BlockAST {
+        close(blockASTs: BlockAST[]) {
+            if (this.level === -1) return
             let poppedContainer = this.containers.pop()!
             if (!!this.lastContainer) {
-                this.lastContainer.raw += poppedContainer.raw!
-                this.lastChild.children!.push(poppedContainer)
+                for (let container of this.containers) {
+                    container.raw += poppedContainer.raw
+                }
+                this.addContent(poppedContainer)
             } else {
                 blockASTs.push(poppedContainer)
             }
-
-            return poppedContainer
         }
         addItem(blockAST: BlockAST) {
             this.lastContainer.raw! += blockAST.raw
-            this.lastContainer.children!.push(blockAST)
+            this.lastContainer.containerItems!.push({
+                item: blockAST,
+                content: []
+            })
+        }
+        addContent(blockAST: BlockAST) {
+            this.lastChild.content.push(blockAST)
         }
 
         addText(blockAST: BlockAST) {
-            this.lastChild.raw += blockAST.raw
-            this.lastContainer.raw += blockAST.raw
+            for (let container of this.containers) {
+                container.raw += " " + blockAST.raw
+            }
+            this.lastChild.item.raw += " " + blockAST.raw
         }
 
         itemTypeOf(blockAST: BlockAST) {
-            return blockAST.type === this.lastContainer.type.replace("Container", "")
+            return blockAST.type === this.lastContainer.type
         }
 
     }
@@ -110,144 +110,159 @@ export namespace C {
         blockRules: BlockMarkdownRules = {}
         inlineRules: InlineMarkdownRules = {}
         tabSpaceNum: number = 2
-        listStrictIndent: boolean = false
         softBreak: boolean = true
-        inlineParser?: IC.MarkdownInlineParser
-        willParseContent: boolean = true
+        inlineParser: IC.MarkdownInlineParser = new IC.MarkdownInlineParser({})
         state: {[key:string]: any} = {}
         geneId: boolean = false
 
-        constructor(blockRules: BlockMarkdownRules = {}, useDefault: boolean = true, inlineRules: InlineMarkdownRules = inlineDefaultRules,
-                    tabSpaceNum=2, listStrictIndent=false, softBreak=true, willParseContent=true, geneId=false, newInstance=false) {
+        newLineRegexString = /(?:(?:\n|^)| {2} *|\\ *) */.source
+
+        constructor(blockRules: BlockMarkdownRules = blockDefaultRules, inlineRules: InlineMarkdownRules = inlineDefaultRules,
+                    tabSpaceNum=2, softBreak=true, geneId=false, newInstance=false) {
             if (newInstance) return
-            this.willParseContent = willParseContent
             this.geneId = geneId
             this.tabSpaceNum = tabSpaceNum
-            this.listStrictIndent = listStrictIndent
             this.softBreak = softBreak
-            let allRules = blockRules
-            if (useDefault) allRules = {...blockDefaultRules, ...allRules}
-            this.blockRules = allRules
+            this.blockRules = blockRules
             this.inlineRules = inlineRules
-            this.inlineParser = MarkdownInlineParser(inlineRules, false)
+            this.inlineParser = MarkdownInlineParser(inlineRules, geneId)
 
-            for (let ruleKey of Object.keys(allRules)) {
-                this.blockRuleHandlers.push(new BlockTagHandler(ruleKey, allRules[ruleKey], this.tabSpaceNum, this))
+            for (let ruleKey of Object.keys(blockRules)) {
+                this.blockRuleHandlers.push(new BlockTagHandler(ruleKey, blockRules[ruleKey], this.tabSpaceNum, this))
             }
             this.blockRuleHandlers = this.blockRuleHandlers.sort((a, b)=>a.order-b.order)
         }
 
-        geneMarkdownAST(blockAST: BlockAST): MarkdownAST {
-            let raw = trimNewLine(blockAST.raw)
-            let [props, trimText] = BlockTagHandler.defaultGetProp(raw)
-            trimText = blockAST.rule?.trimText(trimText) ?? trimText
-            if (this.softBreak && (blockAST.isContainerItem === true || blockAST.type === "Paragraph")) {
-                trimText = trimText.replaceAll(/\n */g, " ").trim().replaceAll(/\\$/g, "").trim()
-            } else {
-                trimText = trimText.replaceAll(/(?<=\n|^) +/g, " ").trim().replaceAll(/\\$/g, "").trim()
-            }
+        private generateMarkdownerAST(type: string, raw: string, content: MarkdownAST[] | ContainerItem[] | any, props?: any): MarkdownAST {
+            return geneAST(this.geneId, type, "block", raw, content, props)
+        }
+        private geneMarkdownAST(blockAST: BlockAST): MarkdownAST {
+            let parse = (blockAST: BlockAST): {raw: string, trimedText: string, props: any} => {
+                let raw = trimNewLine(blockAST.raw)
 
-            let content: any = trimText
-            let children: MarkdownAST[] = []
-
-
-            if (blockAST.type.endsWith("Container")) {
-                props = {...props, ...blockAST.rule?.getContainerProps(raw) ?? {}}
-                children = blockAST.children.map(child => this.geneMarkdownAST(child))
-
-                if (this.willParseContent) {
-                    content = blockAST.rule!.parseContainerContent(trimText)
+                let [props, trimedText] = BlockTagHandler.defaultGetProp(raw)
+                trimedText = trimedText = blockAST.rule?.trimText(trimedText) ?? trimedText
+                if (this.softBreak && (blockAST.isContainer || blockAST.type === "Paragraph")) {
+                    trimedText = trimedText.replaceAll(/\n */g, " ").trim().replaceAll(/\\$/g, "").trim()
+                } else {
+                    trimedText = trimedText.trim()
                 }
-            } else {
-                props = {...props, ...blockAST.rule?.getProps(raw) ?? {}}
-                children = blockAST.children.map(child => this.geneMarkdownAST(child))
 
-                if (this.willParseContent) {
-                    if (!!blockAST.rule) {
-                        content = blockAST.rule!.parseContent(trimText)
-                    } else {
-                        content = this.inlineParser!.new().parse(trimText)
+                return {raw, trimedText, props}
+            }
+            let {raw, trimedText, props} = parse(blockAST)
+
+            let content: any
+            props = {...props, ...blockAST.rule?.getProps(raw) ?? {}}
+
+            if (blockAST.isContainer) {
+                content = blockAST.containerItems!.map(({item, content}): ContainerItem => {
+                    let {trimedText} = parse(item)
+                    return {
+                        item: item.rule?.parseContent(trimedText) ?? [this.inlineParser!.generateTextAST(trimedText)],
+                        content: content.map(c=>this.geneMarkdownAST(c))
                     }
+                } )
+                props = {...props, level: blockAST.level}
+            } else {
+                if (!!blockAST.rule) {
+                    content = blockAST.rule!.parseContent(trimedText)
+                } else {
+                    content = this.inlineParser!.new().parse(trimedText)
                 }
             }
 
-            return generateBlockSyntaxTree(blockAST.type, raw, content, props, children, this.geneId)
+            return this.generateMarkdownerAST(blockAST.type, raw, content, props)
         }
 
         split(content: string) {
             if (this.splitString === "") return [this.geneMarkdownAST({
-                type: "Paragraph", raw: content, children: []
+                type: "Paragraph", raw: content, isContainer: false, containerItems: []
             })]
-            let splitContent = content.split(capturingRegExp(this.splitString)).filter(l=>l!=="")
+            let splitContent = content.split(capturingRegExp(this.splitString))
 
             let t = this.tabSpaceNum
-            let blockASTs: BlockAST[] = []
-            let container = new Container()
+            let splitBlockASTs: BlockAST[] = []
+            let isMatched = true
 
-            let preBlockAST: BlockAST | undefined = undefined
             for (let block of splitContent) {
-                let blockAST: BlockAST = {type: "Paragraph", raw: block, isContainerItem: false, children: []}
-                for (let rule of Object.values(this.usedRuleHandlerMap)) {
-                    if (rule.regex.test(block) && rule.recheckMatch(block)) {
-                        blockAST.type = rule.ruleName
-                        blockAST.isContainerItem = rule.blockType === "container"
-                        blockAST.rule = rule
-                        break
+                isMatched = !isMatched
+                if (block === "") continue
+                let blockAST: BlockAST
+                if (new RegExp(`${this.newLineRegexString}(?=$)`, "g").test(block)) {
+                    blockAST = {type: "NewLine", raw: block, isContainer: false}
+                } else {
+                    blockAST = {type: "Paragraph", raw: block, isContainer: false}
+
+                    if (isMatched) {
+                        for (let rule of Object.values(this.usedRuleHandlerMap)) {
+                            if (rule.regex.test(block) && rule.recheckMatch(block)) {
+                                blockAST.type = rule.ruleName
+                                blockAST.isContainer = rule.blockType === "container"
+                                blockAST.rule = rule
+                                if (blockAST.isContainer) blockAST.containerItems = []
+                                break
+                            }
+                        }
                     }
                 }
-                let newLevel = block.match(new RegExp(`(?<=^(?: {${t}})*) {${t}}(?=(?: {${t}})+|[^ ])`, "g"))?.length ?? 0
-                if (newLevel > container.level + 1 || (block.startsWith(" ") && newLevel === 0)) {
+                splitBlockASTs.push(blockAST)
+            }
+
+            let blockASTs: BlockAST[] = []
+            let container = new Container()
+            let preBlockAST: BlockAST | undefined = undefined
+            for (let blockAST of splitBlockASTs) {
+                if (blockAST.type === "NewLine") {
+                    preBlockAST = blockAST
+                    continue
+                }
+                blockAST.level = Math.floor((blockAST.raw.match(new RegExp(`^\\n?( {${t}})*(?=[^ ])`, "g")) ?? [""])[0].length / 2)
+
+                if (blockAST.level > container.level + 1 || (blockAST.raw.startsWith(" ") && blockAST.level === 0)) {
                     blockAST.type = "Paragraph"
-                    blockAST.isContainerItem = false
+                    blockAST.isContainer = false
+                    blockAST.rule = undefined
+                    blockAST.level = 0
                 }
 
-                // console.log(blockAST,this.usedRuleHandlerMap)
-                // console.log(blockAST)
-                if (!!preBlockAST && preBlockAST.type !== "NewLine" && preBlockAST.isContainerItem && blockAST.type === "Paragraph") {
-                    if (container.level > -1) {
+                if (blockAST.type === "Paragraph" && !!preBlockAST && preBlockAST.type !== "NewLine") {
+                    blockAST.type = "AppendText"
+                }
+
+                if (blockAST.type === "AppendText") {
+                    if (container.level !== -1) {
                         container.addText(blockAST)
                     } else {
                         blockASTs[blockASTs.length-1].raw += blockAST.raw
                     }
+
+                    preBlockAST = blockAST
                     continue
                 }
-                // console.log("--")
-                if (blockAST.type === "NewLine") {
-                    if (container.level !== -1) {
-                        // ---- if new line, add a blank line to container for its raw's integrity
-                        container.addText(blockAST)
-                    }
-                } else {
-                    // ---- if new level is smaller than container level
-                    // ---- close >= newLevel's container
-                    while (newLevel < container.level) {
+
+                // ---- if new level is smaller than container level
+                // ---- close >= blockAST.level's container
+                while (blockAST.level < container.level) {
+                    container.close(blockASTs)
+                }
+
+                if (blockAST.level === container.level) {
+                    if (container.itemTypeOf(blockAST) && preBlockAST?.type !== "NewLine") {
+                        container.addItem(blockAST)
+                    } else {
                         container.close(blockASTs)
                     }
-                    if (newLevel === container.level) {
-                        if (container.level===0) {
-                            if (container.itemTypeOf(blockAST)) {
-                                container.addItem(blockAST)
-                            } else if (blockAST.isContainerItem) {
-                                container.close(blockASTs)
-                                container.open(blockAST)
-                            } else {
-                                container.close(blockASTs)
-                                blockASTs.push(blockAST)
-                            }
-                       } else {
-                            if (container.itemTypeOf(blockAST) || !blockAST.isContainerItem) {
-                                container.addItem(blockAST)
-                            } else {
-                                container.close(blockASTs)
-                                container.open(blockAST)
-                            }
-                       }
-                    } else if (blockAST.isContainerItem && newLevel === container.level + 1) {
+                }
+                // ---- if blockAST.level === container.level, already closed a container, so now blockAST.level === container.level + 1
+                if (blockAST.level === container.level + 1) {
+                    if (blockAST.isContainer) {
                         container.open(blockAST)
+                    } else if (container.level > -1) {
+                        container.addContent(blockAST)
                     } else {
                         blockASTs.push(blockAST)
                     }
-
                 }
 
                 preBlockAST = blockAST
@@ -271,7 +286,9 @@ export namespace C {
                     this.usedRuleHandlerMap[rule.ruleName] = rule
                 }
             }
-            this.splitString = Object.values(this.usedRuleHandlerMap).map(rule=>rule.regexString).join("|")
+            let splitStrings = Object.values(this.usedRuleHandlerMap).map(rule=>rule.regexString)
+            splitStrings.unshift(`(?:${this.newLineRegexString}(?=\\n|$))`)
+            this.splitString = splitStrings.join("|")
 
             content = content.replaceAll("\t", " ".repeat(this.tabSpaceNum))
             content = handleAsciiConflict(content)
@@ -282,15 +299,13 @@ export namespace C {
         }
 
         new() {
-            let newParser = new MarkdownBlockParser(undefined, undefined, undefined, undefined, true)
+            let newParser = new MarkdownBlockParser(undefined, undefined, undefined, undefined, undefined, true)
             newParser.blockRuleHandlers = this.blockRuleHandlers
             newParser.blockRules = this.blockRules
             newParser.inlineRules = this.inlineRules
-            newParser.listStrictIndent = this.listStrictIndent
             newParser.tabSpaceNum = this.tabSpaceNum
             newParser.softBreak = this.softBreak
-            newParser.inlineParser = this.inlineParser?.new()
-            newParser.willParseContent = this.willParseContent
+            newParser.inlineParser = this.inlineParser.new()
             newParser.geneId = this.geneId
             return newParser
 
@@ -298,7 +313,7 @@ export namespace C {
     }
 }
 
-export function MarkdownBlockParser(rules: BlockMarkdownRules={}, useDefault: boolean=true, inlineRules: InlineMarkdownRules=inlineDefaultRules,
-                                    tabSpaceNum: number=2, listStrictIndent=false, softBreak=true, willParseContent=true, geneId=false) {
-    return new C.MarkdownBlockParser(rules, useDefault, inlineRules, tabSpaceNum, listStrictIndent, softBreak, willParseContent, geneId)
+export function MarkdownBlockParser(rules: BlockMarkdownRules={}, inlineRules: InlineMarkdownRules=inlineDefaultRules,
+                                    tabSpaceNum: number=2, softBreak=true, geneId=false) {
+    return new C.MarkdownBlockParser(rules, inlineRules, tabSpaceNum, softBreak, geneId)
 }

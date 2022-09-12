@@ -1,7 +1,6 @@
 import {Markdowner, MarkdownerView} from "./base";
 import MarkdownIt from "markdown-it";
 import {Lexer, marked} from "marked";
-import {range} from "@iandx/reactui";
 import {renderToString} from "react-dom/server";
 
 Markdowner.init()
@@ -73,7 +72,7 @@ async function mdIterRender(fileName="test1", repeatNum=1) {
 async function benchmarkSingleFile(fileName:string, iterations=1000, repeatNum=1, testType:"render"|"parse"="parse") {
     let markdownerTimes=[], markdownItTimes=[], markedTimes=[]
     let iterFunc = testType === "parse" ? mdIterParse : mdIterRender
-    for (let _ of range(iterations).asArray()) {
+    for (let _ of Array(iterations)) {
         let [markdownerTime, markdownItTime, markedTime] = await iterFunc(fileName, repeatNum)
         markdownerTimes.push(markdownerTime)
         markdownItTimes.push(markdownItTime)

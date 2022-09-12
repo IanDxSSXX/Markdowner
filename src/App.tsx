@@ -2,12 +2,11 @@ import {HStack, VStack, Text} from "@iandx/reactui/component";
 import {range, useRUIState, RUITag, RUI, RUIElement} from "@iandx/reactui";
 import {Markdowner, MarkdownerView} from "./base";
 import {Div, Span} from "@iandx/reactui/tag";
-import {benchmark} from "./base/benchmark";
-import {InlineElements, InlineRUIElements} from "./render/view";
+import {benchmark} from "./benchmark";
 
 
 
-Markdowner.init({softBreak: false})
+Markdowner.init({softBreak: true})
 Markdowner.dropRule.block(["Heading"])
 Markdowner.addRule.block({
     name: "Heading",
@@ -55,9 +54,9 @@ function App() {
               .border("1px solid gray"),
 
           Div(
-              // RUITag(MarkdownerView)()
-                  <MarkdownerView content={content.value} incrementalParse={true}/>
-                  // .setProps({content: content.value, incrementalParse: true})
+              <MarkdownerView incrementalParse={true}>
+                  {content.value}
+              </MarkdownerView>
           )
               .height("100%")
               .width("48%")

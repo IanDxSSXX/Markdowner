@@ -1,8 +1,8 @@
-import {Markdowner} from "./index";
+import {Markdowner, MarkdownerView} from "./base";
 import MarkdownIt from "markdown-it";
 import {Lexer, marked} from "marked";
 import {range} from "@iandx/reactui";
-
+import {renderToString} from "react-dom/server";
 
 Markdowner.init()
 async function fileReader(blob: any) {
@@ -55,7 +55,7 @@ async function mdIterParse(fileName="test1", repeatNum=1) {
 async function mdIterRender(fileName="test1", repeatNum=1) {
     let content = (await readMDFile(fileName)).repeat(repeatNum)
     let markdownerTime = calTime(() => {
-        let a = Markdowner.render(content)
+        let a = renderToString(MarkdownerView({content}))
     })
 
     let markdownItTime = calTime(() => {

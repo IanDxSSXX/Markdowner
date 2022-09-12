@@ -1,5 +1,5 @@
 import {InlineMarkdownTagExtend, InlineMarkdownTag} from "./inline/regex";
-import {BlockMarkdownTagExtend, BlockMarkdownTag, hardLineBreakRegex, BlockTagHandler} from "./block/regex";
+import {BlockMarkdownTagExtend, BlockMarkdownTag} from "./block/regex";
 import {flattened} from "../base/utils";
 import {uid} from "../base/utils";
 
@@ -10,9 +10,9 @@ export interface BlockMarkdownRules {
     [key: string]: BlockMarkdownTag | BlockMarkdownTagExtend
 }
 
-export type DefaultInlineRule = "Italic" | "Bold" | "Strike" | "Underline" | "Code" | "Link" | "Escape" | "Superscript" |
+export type DefaultInlineRules = "Italic" | "Bold" | "Strike" | "Underline" | "Code" | "Link" | "Escape" | "Superscript" |
     "Subscript" | "Highlight" | "HtmlTag" | "Math" | "FootnoteSup" | "LinkTag"
-export type DefaultBLockRule = "Heading" | "OrderedList" | "UnorderedList" | "Blockquote" | "CodeBlock" | "Table" | "Divider" |
+export type DefaultBlockRules = "Heading" | "OrderedList" | "UnorderedList" | "Blockquote" | "CodeBlock" | "Table" | "Divider" |
     "CheckList" | "Image" | "MathBlock" | "Latex" | "Footnote" | "LinkTagBlock" | "Comment"
 
 

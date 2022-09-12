@@ -1,12 +1,5 @@
 import {MarkdownAST} from "./syntaxTree";
 import {C} from "./index";
-import {BlockMarkdownRules, DefaultBLockRule} from "../parser/rules";
-import {BlockMarkdownTag, BlockMarkdownTagExtend} from "../parser/block/regex";
-import {ReactUIBase} from "@iandx/reactui/core";
-import {ReactElement} from "react";
-import {DefaultInlineRule, InlineMarkdownRules} from "../parser/rules";
-import {MarkdownerRuleMap, MarkdownerViewFunc} from "../render/ruleMap";
-import {InlineMarkdownTag, InlineMarkdownTagExtend} from "../parser/inline/regex";
 
 export class MarkdownerHelper {
     static warn(position: string, warning: string) {
@@ -80,55 +73,5 @@ export class ASTHelper {
 }
 
 
-export interface MarkdownerBlockRule {
-    ruleName: string
-    rule: BlockMarkdownTag | BlockMarkdownTagExtend
-    view: (content: string|MarkdownAST[]|any, props: any)=>ReactUIBase|ReactElement
-}
 
 
-export class RuleDropper {
-    private markdowner: C.Markdowner
-    constructor(markdowner: C.Markdowner) {
-        this.markdowner = markdowner
-    }
-
-    block(ruleNames: DefaultBLockRule[] | DefaultBLockRule) {
-        if (!(ruleNames instanceof Array)) ruleNames = [ruleNames]
-        for (let ruleName of ruleNames) {
-            delete this.markdowner.blockRules[ruleName]
-            delete this.markdowner.blockRuleMap[ruleName]
-        }
-        this.markdowner.init(this.markdowner.markdownerProps)
-    }
-
-    inline(ruleNames: DefaultInlineRule[] | DefaultInlineRule) {
-        if (!(ruleNames instanceof Array)) ruleNames = [ruleNames]
-        for (let ruleName of ruleNames) {
-            delete this.markdowner.inlineRules[ruleName]
-            delete this.markdowner.inlineRuleMap[ruleName]
-        }
-        this.markdowner.init(this.markdowner.markdownerProps)
-    }
-}
-
-
-export class RuleAdder {
-    private markdowner: C.Markdowner
-
-    constructor(markdowner: C.Markdowner) {
-        this.markdowner = markdowner
-    }
-
-    block({name,rule,view}:{name: string, rule: BlockMarkdownTag | BlockMarkdownTagExtend, view: MarkdownerViewFunc}) {
-        this.markdowner.blockRules[name] = rule
-        this.markdowner.blockRuleMap[name] = view
-        this.markdowner.init(this.markdowner.markdownerProps)
-    }
-
-    inline({name,rule,view}:{name: string, rule: InlineMarkdownTag | InlineMarkdownTagExtend, view: MarkdownerViewFunc}) {
-        this.markdowner.inlineRules[name] = rule
-        this.markdowner.inlineRuleMap[name] = view
-        this.markdowner.init(this.markdowner.markdownerProps)
-    }
-}

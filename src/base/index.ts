@@ -1,15 +1,13 @@
-import {inlineDefaultRules, InlineMarkdownRules} from "../parser/rules";
-import {blockDefaultRules, BlockMarkdownRules, DefaultBLockRule} from "../parser/rules";
+import {inlineDefaultRules, InlineMarkdownRules, blockDefaultRules, BlockMarkdownRules} from "../parser/rules";
 import {MarkdownBlockParser, C as BC} from "../parser/block/parser";
-import { renderToString } from 'react-dom/server'
-import {
-    MarkdownAST,
-} from "./syntaxTree";
+import {MarkdownAST} from "./syntaxTree";
 import {uid} from "./utils";
-import {MarkdownDocument, MarkdownerViewBase} from "../render/view";
-import {ASTHelper, MarkdownerHelper, RuleAdder, RuleDropper} from "./helper";
-import {defaultBlockMap, defaultInlineMap, MarkdownerRuleMap, MarkdownerViewFunc} from "../render/ruleMap";
+import {MarkdownDocument, MarkdownerViewBase, InlineElements, InlineRUIElements} from "../renderer/view";
+import {ASTHelper, MarkdownerHelper} from "./helper";
+import {defaultBlockMap, defaultInlineMap, MarkdownerRuleMap, MarkdownerViewFunc} from "../renderer/ruleMap";
 import {Div} from "@iandx/reactui/tag";
+import {RUI} from "@iandx/reactui";
+import {RuleAdder, RuleDropper} from "./rules";
 
 export namespace C {
     interface MarkdownerProps {
@@ -65,20 +63,28 @@ export namespace C {
             return new Markdowner().init(props)
         }
 
-        render(content: string) {
-            return renderToString(this.View({content}))
-        }
+        view = RUI(({content, incrementalParse, children}: any) => {
+            let newContent: string
+            if (content === undefined) {
+                if (children === undefined) {
+                    MarkdownerHelper.warn("Render", "must supply a content prop or set MarkdownerView's children as a single string")
+                    return Div()
+                } else {
+                    newContent = children
+                }
+            } else {
+                newContent = content
+            }
+            let markdownASTs = incrementalParse??false ? this.parse(newContent) : this.ast.incrementalParse(newContent)
 
-        View({content, incrementalParse}: {content:string, incrementalParse?:boolean}) {
-            let markdownASTs = incrementalParse??false ? this.parse(content) : this.ast.incrementalParse(content)
             MarkdownerViewBase.init(this.blockRuleMap, this.inlineRuleMap)
-            console.log(markdownASTs)
             return  Div(
                 MarkdownDocument({markdownASTs, isDocument: true})
-            ).className("Markdowner-Document-root").asReactElement()
-        }
+            ).className("Markdowner-Document-root")
+        })
     }
 
 }
 export const Markdowner = new C.Markdowner()
-export const MarkdownerView = (props: {content:string, incrementalParse?:boolean}) => Markdowner.View(props)
+export const MarkdownerView = (props: {children?: string, content?:string, incrementalParse?:boolean}) => Markdowner.view(props).asReactElement()
+export {InlineElements, InlineRUIElements}

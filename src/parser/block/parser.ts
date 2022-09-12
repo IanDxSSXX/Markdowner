@@ -226,7 +226,8 @@ export namespace C {
                     blockAST.level = 0
                 }
 
-                if (blockAST.type === "Paragraph" && !!preBlockAST && preBlockAST.type !== "NewLine") {
+                if (blockAST.type === "Paragraph" && !!preBlockAST && preBlockAST.type !== "NewLine" &&
+                    (preBlockAST.isContainer||["Paragraph", "AppendText"].includes(preBlockAST.type))) {
                     blockAST.type = "AppendText"
                 }
 

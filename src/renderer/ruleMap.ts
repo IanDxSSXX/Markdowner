@@ -13,14 +13,9 @@ import {
     Td,
     Blockquote
 } from "@iandx/reactui/tag";
-import {Prism as SyntaxHighlighter} from "react-syntax-highlighter";
-import {oneLight} from "react-syntax-highlighter/dist/esm/styles/prism";
+
 import {ContainerItem, MarkdownAST} from "../base/syntaxTree";
 import {ForEach, RUITag, RUIFragment, range, uid, ConditionView} from "@iandx/reactui";
-import katex from "katex";
-import "katex/dist/katex.css"
-// @ts-ignore latexStyles.js has no @types package
-import * as latex from 'latex.js'
 import {Markdowner} from "../base";
 import {MdOutlineReply, MdCircle} from "react-icons/md"
 import {ReactUIBase} from "@iandx/reactui/core";
@@ -28,6 +23,7 @@ import {ReactElement} from "react";
 import {latexStyle} from "../.supports/latexStyles/styles";
 import {Indexing} from "../base/utils";
 import {InlineRUIElements, MarkdownDocument} from "./view";
+import {MarkdownerHelper} from "../base/helper";
 
 
 export type MarkdownerViewFunc = (content: string|MarkdownAST[]|ContainerItem[]|any, props: any)=>ReactUIBase|ReactElement
@@ -69,15 +65,25 @@ export const defaultInlineMap: MarkdownerRuleMap = {
     HtmlTag: (content, {tag}) =>
         RUITag(tag)(...InlineRUIElements(content)),
     Math: (content) => {
+        let __html: string
+        try {
+            const katex = require("katex");
+            // @ts-ignore
+            import("katex/dist/katex.css")
+            __html = katex.renderToString(content, {
+                throwOnError: false,
+                output: "html",
+                displayMode: false
+            })
+        } catch (e) {
+            __html = content
+            MarkdownerHelper.warn("Latex math", "Error when parsing LaTex math formula, default parser is using " +
+                "this project(https://github.com/KaTeX/KaTeX), " +
+                "install it as dependency to use this feature or override [MathBlock] View")
+        }
         return (
             Span()
-            .setProp("dangerouslySetInnerHTML", {
-                __html:
-                    katex.renderToString(content, {
-                        throwOnError: false,
-                        output: "html"
-                    })
-            })
+            .setProp("dangerouslySetInnerHTML", {__html})
         )
     }
     ,
@@ -106,12 +112,25 @@ export const defaultBlockMap: MarkdownerRuleMap = {
     Heading: (content, {headingLevel}) =>
         Span(...InlineRUIElements(content)).fontSize(`${(5 - (headingLevel ?? 1)) * 6 + 15}px`)
     ,
-    CodeBlock: ({language, content}) =>
-        RUITag(SyntaxHighlighter)(content)
-            .setProps({
-                language,
-                style: oneLight
-            }),
+    CodeBlock: ({language, content}) => {
+        let blockTag: any
+        let props:any = {}
+        try {
+            const {Prism} = require("react-syntax-highlighter");
+            const {oneLight} = require("react-syntax-highlighter/dist/esm/styles/prism")
+            blockTag = Prism
+            props.language = language
+            props.style = oneLight
+        } catch (e) {
+            blockTag = "code"
+            MarkdownerHelper.warn("Code block", "Error when parsing Code block, default parser is using " +
+                "this project(https://github.com/react-syntax-highlighter/react-syntax-highlighter), " +
+                "install it as dependency to use this feature or override [MathBlock] View or just using <code/> like now")
+        }
+        return RUITag(blockTag)(content)
+            .setProps(props)
+    },
+
 
     UnorderedList: (content: ContainerItem[], {level}) => {
         let bulletList = ["●", "○", "■", "□", "◆", "◇", "▸", "▹"]
@@ -246,28 +265,47 @@ export const defaultBlockMap: MarkdownerRuleMap = {
         )
     },
     MathBlock: (content) => {
-        return Div()
-            .setProp("dangerouslySetInnerHTML", {
-                __html:
-                    katex.renderToString(content, {
-                        throwOnError: false,
-                        output: "html",
-                        displayMode: true
-                    })
+        let __html: string
+        try {
+            const katex = require("katex");
+            // @ts-ignore
+            import("katex/dist/katex.css")
+            __html = katex.renderToString(content, {
+                throwOnError: false,
+                output: "html",
+                displayMode: true
             })
+        } catch (e) {
+            __html = content
+            MarkdownerHelper.warn("Latex math", "Error when parsing LaTex math formula, default parser is using " +
+                "this project(https://github.com/KaTeX/KaTeX), " +
+                "install it as dependency to use this feature or override [MathBlock] View")
+        }
+        return Div()
+            .setProp("dangerouslySetInnerHTML", {__html})
     }
     ,
     Latex: (content) => {
         let latexHtml: string
         try {
-            let document = latex.parse(content, {generator:  new latex.HtmlGenerator({hyphenate: false})}).htmlDocument()
-            let bodyHtml = document.body.innerHTML
-            // ---- I'm a genius!
-            const {latexStyle} = require("../.supports/latexStyles/styles")
-            latexHtml = latexStyle + bodyHtml
+            const latex = require("latex.js")
+            try {
+                let document = latex.parse(content, {generator:  new latex.HtmlGenerator({hyphenate: false})}).htmlDocument()
+                let bodyHtml = document.body.innerHTML
+                // ---- I'm a genius!
+                const {latexStyle} = require("../.supports/latexStyles/styles")
+                latexHtml = latexStyle + bodyHtml
+            } catch (e) {
+                latexHtml = `<div style='color:red'>${content}</div>`
+            }
         } catch (e) {
-            latexHtml = "<div style='color:red'>error when parsing LaTex Document</div>"
+            MarkdownerHelper.warn("Latex", "Error when parsing LaTex Document, default parser is using " +
+                "this project(https://github.com/michael-brade/LaTeX.js), " +
+                "install it as dependency to use this feature or override [Latex] View")
+            latexHtml = content
         }
+
+
 
         return (
             Div()

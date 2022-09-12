@@ -10,11 +10,15 @@ const rollupDefault = [{
     input: 'src/base/index.ts',
     output: {
         file: 'dist/index.js',
-        format: 'esm'
+        format: 'esm',
+        inlineDynamicImports: true
     },
     plugins: [
         typescript({tsconfig: "tsconfig.json"}),
-        commonjs(),
+        commonjs({
+            'node_modules/react-dom/index.js': [
+                  'renderToString'
+            ]}),
         nodeResolve(),
         css()
     ],

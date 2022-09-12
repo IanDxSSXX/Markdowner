@@ -1,13 +1,13 @@
-import {ContainerItem, generateMarkdownerAST as geneAST, MarkdownAST} from "../base/syntaxTree";
+import {ContainerItem, generateMarkdownerAST as geneAST, MarkdownAST} from "../../base/syntaxTree";
 import {
     BlockMarkdownTagExtend,
     BlockMarkdownTagType,
     BlockTagHandler,
     hardLineBreakRegex,
 } from "./regex";
-import {blockDefaultRules, BlockMarkdownRules} from "./rules";
-import {capturingRegExp, correctRegExpKeywords, objectValid} from "../base/utils";
-import {inlineDefaultRules, InlineMarkdownRules} from "../inline/rules";
+import {blockDefaultRules, BlockMarkdownRules} from "../rules";
+import {capturingRegExp, correctRegExpKeywords, objectValid} from "../../base/utils";
+import {inlineDefaultRules, InlineMarkdownRules} from "../rules";
 import {C as IC, MarkdownInlineParser} from "../inline/parser"
 import {InlineTagHandler} from "../inline/regex";
 

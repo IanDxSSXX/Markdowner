@@ -1,12 +1,20 @@
-import {BlockMarkdownTagExtend, BlockMarkdownTag, hardLineBreakRegex, BlockTagHandler} from "./regex";
+import {InlineMarkdownTagExtend, InlineMarkdownTag} from "./inline/regex";
+import {BlockMarkdownTagExtend, BlockMarkdownTag, hardLineBreakRegex, BlockTagHandler} from "./block/regex";
 import {flattened} from "../base/utils";
+import {uid} from "../base/utils";
 
+export interface InlineMarkdownRules {
+    [key: string]: InlineMarkdownTag | InlineMarkdownTagExtend
+}
 export interface BlockMarkdownRules {
     [key: string]: BlockMarkdownTag | BlockMarkdownTagExtend
 }
 
+export type DefaultInlineRule = "Italic" | "Bold" | "Strike" | "Underline" | "Code" | "Link" | "Escape" | "Superscript" |
+    "Subscript" | "Highlight" | "HtmlTag" | "Math" | "FootnoteSup" | "LinkTag"
 export type DefaultBLockRule = "Heading" | "OrderedList" | "UnorderedList" | "Blockquote" | "CodeBlock" | "Table" | "Divider" |
     "CheckList" | "Image" | "MathBlock" | "Latex" | "Footnote" | "LinkTagBlock" | "Comment"
+
 
 export const blockDefaultRules: BlockMarkdownRules = {
     Heading: {
@@ -180,5 +188,77 @@ export const blockDefaultRules: BlockMarkdownRules = {
         getProps: ()=>({visible: false})
     }
 
+
+}
+
+export const inlineDefaultRules: InlineMarkdownRules = {
+    // ---- the order doesn't matter, default order is 1
+    Italic: {
+        tags: {
+            round: "[em]",
+            exact: [
+                /\*(?!\s)(?:(?:[^*]*?(?:\*\*[^*]+?\*\*[^*]*?)+?)+?|[^*]+)\*/,
+            ]
+        },
+        trimText: (text: string) => text.replace(/^\*|\*$/g, ""),
+    },
+    Bold: {
+        tags: {
+            round: "[bold]",
+            exact: [
+                /\*\*(?!\s)(?:[^*]+?|(?:[^*]*(?:\*[^*]+\*[^*]*)+?)+?)\*\*/,
+            ]
+        },
+        trimText: (text: string) => text.replace(/^\*\*|\*\*$/g, ""),
+        order: 0
+    },
+    Strike: {
+        tags: {round: ["~~", "[strike]"]},
+        order: 0 // prior to subscript
+    },
+    Underline: {wrap: ["<u>", "</u>"], round: ["_", "[underline]"]},
+    Code: {
+        tags: {round: ["`", "[code]"]},
+        recheckMatch: raw => (raw.match(/`/g) ?? []).length % 2 === 0
+    },
+    Link: {
+        tags: {wrap: ["[", /]\(.+?\)/]},
+        getProps: (text: string) => ({linkUrl: text.match(/\(.+?\)$/)![0].replaceAll(/[()]/g, "")}),
+    },
+    Escape: {
+        tags: {exact: /\\[*~<>_=`$\\]/},
+        trimText: text => text.replace("\\", ""),
+        order: -1000 // ---- must be the first
+    },
+    Superscript: {round: "^"},
+    Subscript: {round: "~"},
+    Highlight: {round: "=="},
+    HtmlTag: {
+        tags: {wrap: [/<[a-zA-Z]+>/, /<\/[a-zA-Z]+>/]},
+        recheckMatch: raw => {
+            let leftTag = raw.match(/<[a-zA-Z]+>/)![0]
+            let rightTag = raw.match(/<\/[a-zA-Z]+>/)![0]
+            return leftTag.replaceAll(/[<>]/g, "").trim() === rightTag.replaceAll(/[<>/]/g, "").trim()
+        },
+        getProps: text => ({tag: text.match(/<[a-zA-Z]+>/)![0].replaceAll(/[<>]/g, "").trim()})
+    },
+    Math: {
+        tags: {round: "$"},
+        allowNesting: false,
+    },
+    FootnoteSup: {
+        tags: {wrap: ["[^", "]"]},
+        getProps: (text) => {
+            let noteName = text.replaceAll(/[[\]^]/g, "")
+            return {noteName, footnoteSupId: uid()}
+        },
+        order: -2,
+        allowNesting: false
+    },
+    LinkTag: {
+        tags: {wrap: ["[", "]"]},
+        order: -1,
+        getProps: raw => ({tagName: raw.replaceAll(/[[\]]/g, "").trim()})
+    },
 
 }

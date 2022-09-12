@@ -1,12 +1,12 @@
 import {MarkdownAST} from "./syntaxTree";
 import {C} from "./index";
-import {BlockMarkdownRules, DefaultBLockRule} from "../block/rules";
-import {BlockMarkdownTag, BlockMarkdownTagExtend} from "../block/regex";
+import {BlockMarkdownRules, DefaultBLockRule} from "../parser/rules";
+import {BlockMarkdownTag, BlockMarkdownTagExtend} from "../parser/block/regex";
 import {ReactUIBase} from "@iandx/reactui/core";
 import {ReactElement} from "react";
-import {DefaultInlineRule, InlineMarkdownRules} from "../inline/rules";
+import {DefaultInlineRule, InlineMarkdownRules} from "../parser/rules";
 import {MarkdownerRuleMap, MarkdownerViewFunc} from "../render/ruleMap";
-import {InlineMarkdownTag, InlineMarkdownTagExtend} from "../inline/regex";
+import {InlineMarkdownTag, InlineMarkdownTagExtend} from "../parser/inline/regex";
 
 export class MarkdownerHelper {
     static warn(position: string, warning: string) {

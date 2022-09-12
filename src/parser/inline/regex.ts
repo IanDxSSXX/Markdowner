@@ -1,4 +1,4 @@
-import {correctRegExpKeywords} from "../base/utils";
+import {correctRegExpKeywords} from "../../base/utils";
 import {C, MarkdownInlineParser} from "./parser";
 
 // ---- declaring

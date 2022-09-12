@@ -1,8 +1,8 @@
-import {correctRegExpKeywords} from "../base/utils";
-import {inlineDefaultRules, InlineMarkdownRules} from "../inline/rules";
+import {correctRegExpKeywords} from "../../base/utils";
+import {inlineDefaultRules, InlineMarkdownRules} from "../rules";
 import {MarkdownInlineParser} from "../inline/parser";
 import {C} from "./parser";
-import {MarkdownerHelper} from "../base/helper";
+import {MarkdownerHelper} from "../../base/helper";
 
 // ---- declaring
 export type BlockMarkdownTagType = string | RegExp

@@ -10,18 +10,12 @@
     "@types/jest": "^27.5.2",
     "@types/react": "^18.0.17",
     "@types/react-dom": "^18.0.6",
-    "css-loader": "^6.7.1",
     "katex": "^0.16.2",
     "latex.js": "^0.12.4",
-    "markdown-it": "^13.0.1",
-    "marked": "^4.1.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-latex-next": "^2.2.0",
     "react-scripts": "5.0.1",
     "react-syntax-highlighter": "^15.5.0",
-    "sass": "^1.54.9",
-    "style-loader": "^3.3.1",
     "typescript": "^4.8.2",
     "web-vitals": "^2.1.4"
   },
@@ -29,7 +23,8 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "rollup": "rollup -c"
   },
   "eslintConfig": {
     "extends": [
@@ -50,10 +45,20 @@
     ]
   },
   "devDependencies": {
+    "@rollup/plugin-commonjs": "^22.0.2",
+    "@rollup/plugin-node-resolve": "^14.0.1",
+    "@rollup/plugin-typescript": "^8.5.0",
     "@types/katex": "^0.14.0",
     "@types/markdown-it": "^12.2.3",
     "@types/marked": "^4.0.6",
     "@types/react-syntax-highlighter": "^15.5.5",
-    "eslint-plugin-react": "^7.31.7"
+    "eslint-plugin-react": "^7.31.7",
+    "markdown-it": "^13.0.1",
+    "marked": "^4.1.0",
+    "rollup": "^2.79.0",
+    "rollup-plugin-dts": "^4.2.2",
+    "rollup-plugin-import-css": "^3.0.3",
+    "rollup-plugin-multi-input": "^1.3.1",
+    "rollup-plugin-sass": "^1.2.13"
   }
 }

@@ -1,6 +1,6 @@
-import {DefaultInlineRule, inlineDefaultRules, InlineMarkdownRules} from "../inline/rules";
-import {blockDefaultRules, BlockMarkdownRules, DefaultBLockRule} from "../block/rules";
-import {MarkdownBlockParser, C as BC} from "../block/parser";
+import {inlineDefaultRules, InlineMarkdownRules} from "../parser/rules";
+import {blockDefaultRules, BlockMarkdownRules, DefaultBLockRule} from "../parser/rules";
+import {MarkdownBlockParser, C as BC} from "../parser/block/parser";
 import { renderToString } from 'react-dom/server'
 import {
     MarkdownAST,

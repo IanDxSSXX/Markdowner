@@ -1,8 +1,8 @@
-import {generateMarkdownerAST as geneAST, MarkdownAST} from "../base/syntaxTree";
+import {generateMarkdownerAST as geneAST, MarkdownAST} from "../../base/syntaxTree";
 import {InlineTagHandler} from "./regex";
-import {inlineDefaultRules, InlineMarkdownRules} from "./rules";
-import {capturingRegExp} from "../base/utils";
-import {uid} from "../base/utils";
+import {inlineDefaultRules, InlineMarkdownRules} from "../rules";
+import {capturingRegExp} from "../../base/utils";
+import {uid} from "../../base/utils";
 import {C as BC} from "../block/parser"
 
 

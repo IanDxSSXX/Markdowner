@@ -54,9 +54,7 @@ function App() {
               .border("1px solid gray"),
 
           Div(
-              <MarkdownerView incrementalParse={true}>
-                  {content.value}
-              </MarkdownerView>
+              MarkdownerView({incrementalParse: true, content: content.value})
           )
               .height("100%")
               .width("48%")

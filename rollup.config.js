@@ -4,12 +4,12 @@ import commonjs from '@rollup/plugin-commonjs';
 import css from "rollup-plugin-import-css";
 import dts from "rollup-plugin-dts";
 
-const packageJson = require("./dist/package.json");
+const packageJson = require("./package/package.json");
 
 const rollupDefault = [{
     input: 'src/base/index.ts',
     output: {
-        file: 'dist/index.js',
+        file: 'package/index.js',
         format: 'esm',
         inlineDynamicImports: true
     },
@@ -27,7 +27,7 @@ const rollupDefault = [{
 {
     input: 'src/base/index.ts',
     output: {
-        file: 'dist/index.d.ts',
+        file: 'package/index.d.ts',
         format: "esm"
     },
     plugins: [

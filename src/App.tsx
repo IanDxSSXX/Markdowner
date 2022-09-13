@@ -3,6 +3,7 @@ import {range, useRUIState, RUITag, RUI, RUIElement} from "@iandx/reactui";
 import {Markdowner, MarkdownerView} from "./base";
 import {Div, Span} from "@iandx/reactui/tag";
 import {benchmark} from "./benchmark";
+import {renderToString} from "react-dom/server";
 
 
 
@@ -38,7 +39,7 @@ Markdowner.addRule.block({
 })
 
 
-function App() {
+function EditableMarkdowner() {
     // benchmark()
     let content = useRUIState("")
     return (
@@ -66,8 +67,15 @@ function App() {
           .width("90%")
           .height("90vh")
           .padding("2vh 2%")
-          .asReactElement()
+
     )
 }
+
+
+function App() {
+    console.log(renderToString(EditableMarkdowner().asReactElement()))
+    return EditableMarkdowner().asReactElement()
+}
+
 
 export default App;

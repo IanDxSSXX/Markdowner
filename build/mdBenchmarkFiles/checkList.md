@@ -1,4 +1,0 @@
-- [x] This is done
-  - [ ] nested1
-    - [ ] nested11
-- [ ] This hasn't been done

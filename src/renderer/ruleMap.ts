@@ -23,9 +23,10 @@ import {latexStyle} from "../.supports/latexStyles/styles";
 import {Indexing} from "../base/utils";
 import {InlineRUIElements, MarkdownDocument} from "./view";
 import {MarkdownerHelper} from "../base/helper";
+import {ReactElement} from "react";
 
 
-export type MarkdownerViewFunc = (content: string|MarkdownAST[]|ContainerItem[]|any, props: any)=>ReactUIBase
+export type MarkdownerViewFunc = (content: string|MarkdownAST[]|ContainerItem[]|any, props: any)=>ReactUIBase|ReactElement
 export interface MarkdownerRuleMap {[key:string]: MarkdownerViewFunc}
 export const defaultInlineMap: MarkdownerRuleMap = {
     Text: (content) =>
@@ -61,8 +62,8 @@ export const defaultInlineMap: MarkdownerRuleMap = {
         Span(...InlineRUIElements(content)),
     Highlight: (content) =>
         Span(...InlineRUIElements(content)).backgroundColor("Highlight"),
-    HtmlTag: (content, {tag}) =>
-        RUITag(tag)(...InlineRUIElements(content)),
+    HtmlTag: (content) =>
+        Span().setProp("dangerouslySetInnerHTML", {__html: content}),
     Math: (content) => {
         let __html: string
         try {
@@ -181,10 +182,10 @@ export const defaultBlockMap: MarkdownerRuleMap = {
             )).width("100%"),
             // ---- rows
             Tbody(
-                ...ForEach(rows, (row: string[]) =>
+                ...ForEach(rows, (row: MarkdownAST[][]) =>
                     Tr(
                         ...ForEach(row, (r, idx) =>
-                            Td(r)
+                            Td(...InlineRUIElements(r))
                                 .border("thin solid gray")
                                 .borderCollapse("collapse")
                                 .padding("5px")

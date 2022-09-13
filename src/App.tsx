@@ -1,6 +1,6 @@
 import {HStack, VStack, Text} from "@iandx/reactui/component";
 import {range, useRUIState, RUITag, RUI, RUIElement} from "@iandx/reactui";
-import {Markdowner, MarkdownerView} from "./base";
+import {InlineElements, InlineRUIElements, Markdowner, ReactMarkdowner, RUIMarkdowner} from "./base";
 import {Div, Span} from "@iandx/reactui/tag";
 import {benchmark} from "./benchmark";
 import {renderToString} from "react-dom/server";
@@ -35,9 +35,14 @@ Markdowner.addRule.block({
         blockType: "leaf"
     },
     view: (content: any, {headingLevel, blockProp}) =>
-        Span(content+(!!blockProp ? blockProp.a:"")).fontSize(`${(5 - (headingLevel ?? 1)) * 6 + 15}px`)
+        <span style={{fontSize:`${(5 - (headingLevel ?? 1)) * 6 + 15}px`}}>{content+(!!blockProp ? blockProp.a:"")}</span>
 })
-
+Markdowner.addRule.inline({
+    name: "What",
+    rule: { tags:{round: "hh" }, allowNesting: false},
+    view: (content: string) =>
+        <span style={{color:"red"}}>{content}</span>,
+})
 
 function EditableMarkdowner() {
     // benchmark()
@@ -55,7 +60,8 @@ function EditableMarkdowner() {
               .border("1px solid gray"),
 
           Div(
-              MarkdownerView({incrementalParse: true, content: content.value})
+              RUIMarkdowner({content: content.value})
+                // <ReactMarkdowner incrementalParse={true}>{content.value}</ReactMarkdowner>
           )
               .height("100%")
               .width("48%")
@@ -71,9 +77,7 @@ function EditableMarkdowner() {
     )
 }
 
-
 function App() {
-    console.log(renderToString(EditableMarkdowner().asReactElement()))
     return EditableMarkdowner().asReactElement()
 }
 

@@ -13,6 +13,8 @@ export interface MarkdownerBlockRule {
     view: (content: string|MarkdownAST[]|any, props: any)=>ReactUIBase
 }
 
+
+
 export class RuleDropper {
     private markdowner: C.Markdowner
     constructor(markdowner: C.Markdowner) {

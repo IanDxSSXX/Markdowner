@@ -3,7 +3,7 @@ import {MarkdownAST} from "../base/syntaxTree";
 import {List} from "@iandx/reactui/component";
 import {defaultBlockMap, defaultInlineMap, MarkdownerViewFunc} from "./ruleMap";
 import {Div, Span} from "@iandx/reactui/tag";
-import {useMemo} from "react";
+import {ReactElement, useMemo} from "react";
 import {ReactUIBase} from "@iandx/reactui/core";
 import {isInstanceOf, uid} from "../base/utils";
 import React from "react"
@@ -19,7 +19,6 @@ namespace C {
             this.inlineMap = inlineMap
         }
 
-
         block(markdownAST: MarkdownAST): ReactUIBase {
             let blockFunc = this.blockMap[markdownAST.type]
             let element
@@ -30,12 +29,23 @@ namespace C {
                 element = Span(markdownAST.raw)
             }
 
-            return element
+            return this.toRUIElement(element)
         }
 
+        toRUIElement(element: ReactUIBase | ReactElement): ReactUIBase {
+            if ((element as any).IAmReactUI??false) {
+                return element as ReactUIBase
+            } else {
+                return RUIElement(element as ReactElement)
+            }
+        }
 
         inlineRUIElements(inlineASTs: MarkdownAST[]) {
             return inlineASTs.map(inlineAST => this.inlineElement(inlineAST))
+        }
+
+        inlineElements(inlineASTs: MarkdownAST[]) {
+            return React.Children.toArray(inlineASTs.map(inlineAST => this.inlineElement(inlineAST).asReactElement()))
         }
 
         private inlineElement(inlineAST: MarkdownAST): ReactUIBase {
@@ -47,13 +57,14 @@ namespace C {
                 MarkdownerHelper.warn("Render-inline", `didn't have a block map named ${inlineAST.type}, treat it as plain text`)
                 element = Span(inlineAST.raw)
             }
-            return element
+            return this.toRUIElement(element)
         }
     }
 }
 
 export const MarkdownerViewBase = new C.MarkdownerViewBase()
 export const InlineRUIElements = (inlineASTs: MarkdownAST[]) => MarkdownerViewBase.inlineRUIElements(inlineASTs)
+export const InlineElements = (inlineASTs: MarkdownAST[]) => MarkdownerViewBase.inlineElements(inlineASTs)
 
 export const MarkdownDocument = RUI(({markdownASTs, isDocument}: { markdownASTs: MarkdownAST[], isDocument: boolean }) => {
     let newMarkdownASTs = markdownASTs

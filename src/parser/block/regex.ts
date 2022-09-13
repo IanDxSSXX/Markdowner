@@ -43,7 +43,6 @@ export class BlockTagHandler {
     parseContent: (text: string) => any = text => this.defaultParseContent(text)
     parseContainerContent: (text: string) => any = _ => undefined
     getProps: (raw: string) => any = () => {}
-    getContainerProps: (raw: string) => any = () => {}
     trimText: (raw: string) => string = this.defaultTrimText
     recheckMatch: (raw: string) => boolean = () => true
 
@@ -138,7 +137,7 @@ export class BlockTagHandler {
         // ---* parse [T]
         for (let tag of (this.tags.exact ?? []) as Array<BlockMarkdownTagType>) {
             let regexTag = correctRegExpKeywords(tag)
-            regexArray.push(`(?:${regexTag})`)
+            regexArray.push(`(?:(?:\\n|^)(?:${regexTag})(?=\\n|$))`)
         }
         this.regexString = regexArray.join("|")
     }

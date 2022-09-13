@@ -2,12 +2,13 @@ import {inlineDefaultRules, InlineMarkdownRules, blockDefaultRules, BlockMarkdow
 import {MarkdownBlockParser, C as BC} from "../parser/block/parser";
 import {MarkdownAST} from "./syntaxTree";
 import {uid} from "./utils";
-import {MarkdownDocument, MarkdownerViewBase, InlineRUIElements} from "../renderer/view";
+import {MarkdownDocument, MarkdownerViewBase, InlineRUIElements, InlineElements} from "../renderer/view";
 import {ASTHelper, MarkdownerHelper} from "./helper";
 import {defaultBlockMap, defaultInlineMap, MarkdownerRuleMap, MarkdownerViewFunc} from "../renderer/ruleMap";
 import {Div} from "@iandx/reactui/tag";
-import {RUI} from "@iandx/reactui";
+import {RUI, useRUIState} from "@iandx/reactui";
 import {RuleAdder, RuleDropper} from "./rules";
+import {useEffect} from "react";
 
 export namespace C {
     interface MarkdownerProps {
@@ -15,6 +16,12 @@ export namespace C {
         softBreak?: boolean
         geneId?: boolean
     }
+
+    export interface MarkdownerViewProps{
+        content?: string
+        children?: string
+    }
+
     export class Markdowner {
         blockParser?: BC.MarkdownBlockParser
         ast: ASTHelper
@@ -39,10 +46,10 @@ export namespace C {
             return this
         }
 
+
         parseInline(content: string) {
             if (!this.blockParser) {
-                MarkdownerHelper.warn("ParseInline", "You should initialize markdowner by (Markdowner.init()) first")
-                return content
+                this.init()
             }
 
             return this.blockParser!.inlineParser!.new().parse(content)
@@ -50,8 +57,7 @@ export namespace C {
 
         parse(content: string): MarkdownAST[] {
             if (!this.blockParser) {
-                MarkdownerHelper.warn("Parse", "You should initialize markdowner by (Markdowner.init()) first")
-                return [{id: uid(), type: "Paragraph", level: "block", raw: "Error", content: "you should initialize markdowner by [Markdowner.init()] first"}]
+                this.init()
             }
             let trees = this.blockParser!.new().parse(content)
             this.ast.trees = trees
@@ -59,35 +65,39 @@ export namespace C {
             return trees
         }
 
-        new(props:MarkdownerProps={}) {
-            return new Markdowner().init(props)
+        new(props?:MarkdownerProps) {
+            return new Markdowner().init(props??this.markdownerProps)
         }
 
+        view = RUI(({content, children}: MarkdownerViewProps) => {
+            let newContent: string
+            if (content === undefined) {
+                if (children === undefined) {
+                    MarkdownerHelper.warn("Render", "must supply a content prop or set MarkdownerView's children as a single string")
+                    return Div()
+                } else {
+                    newContent = children
+                }
+            } else {
+                newContent = content
+            }
+            let markdownASTs = this.ast.incrementalParse(newContent)
+
+            MarkdownerViewBase.init(this.blockRuleMap, this.inlineRuleMap)
+            return  Div(
+                MarkdownDocument({markdownASTs, isDocument: true})
+            ).className("Markdowner-Document-root")
+        })
     }
 
 }
 export const Markdowner = new C.Markdowner()
-export const MarkdownerView = RUI(({content, incrementalParse, children}: any) => {
-    let newContent: string
-    if (content === undefined) {
-        if (children === undefined) {
-            MarkdownerHelper.warn("Render", "must supply a content prop or set MarkdownerView's children as a single string")
-            return Div()
-        } else {
-            newContent = children
-        }
-    } else {
-        newContent = content
-    }
-    let markdownASTs = incrementalParse??false ? Markdowner.parse(newContent) : Markdowner.ast.incrementalParse(newContent)
+export function RUIMarkdowner(props: C.MarkdownerViewProps) {
+    return Markdowner.view(props)
+}
 
-    MarkdownerViewBase.init(Markdowner.blockRuleMap, Markdowner.inlineRuleMap)
-    return  Div(
-        MarkdownDocument({markdownASTs, isDocument: true})
-    ).className("Markdowner-Document-root")
-})
-export {InlineRUIElements}
+export function ReactMarkdowner(props: C.MarkdownerViewProps) {
+    return Markdowner.view(props).asReactElement()
+}
 
-export const TextMe = RUI(() =>
-    Div("what is this")
-)
+export {InlineRUIElements, InlineElements}

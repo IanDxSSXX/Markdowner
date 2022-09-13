@@ -1,51 +1,128 @@
 # Markdowner
-The best markdown parser and renderer for react
+A powerful markdown parser and renderer for react
 * 👐 build for high extensibility
 * ⚡️ yet still very fast
-* 💫 best practice for react (also works in a browser/server/cli)
-* incremental parsing to avoid unnecessary dom render
-## Demo
+* 💫 best practice for react
+* ✨ incremental parsing to avoid unnecessary dom re-render
+* 🎨 easy to customize
 
-## install
+## Install
+`npm install @iandx/markdowner`
 
-
-## Usage
-### React
-```javascript
-import React, {useState} from 'react';
-import { MarkdownerView } from '@iandx/markdowner';
-
+## Quick start
+```tsx
+import { ReactMarkdowner } from '@iandx/markdowner';
 function App () {
-    const content = '# Markdowner **high extensibility**';
+    const content = '# Welcome to **use** *Markdowner*';
     return(
-        <MarkdownerView content={content} />
+        <ReactMarkdowner content={content}/>
     )
 }
- 
-```
-### HTML
-```html
-
 ```
 
+## Usage
+### ReactMarkdowner
+* Basic React component. Give it a `content` or `children` prop as its rendering content
+
+  Use whichever you like
+```tsx
+let content = "* this is a list"
+const Markdowner1 = () => 
+    <ReactMarkdowner content={content} />
+const Markdowner2 = () =>
+    <ReactMarkdowner>{content}<ReactMarkdowner/>
+```
+### Markdowner
+#### Global init markdowner
+
+```tsx
+import {Markdowner} from "@iandx/markdowner"
+Markdowner.init({
+    tabSpaceNum: 2,
+    softBreak: true,
+    geneId: false
+})
+```
+| properties | type   | default | description                                                                  |
+|--------|---|------------------------------------------------------------------------------|-----------------|
+| tabSpaceNum    | number | 2 | a tab "\t" equals to how many spaces                               |
+| softBreak    | number | true | if set "true", "\n" will be recognized as a soft break instead of a new line |
+| geneId    | number | false | give each AST a unique id, useful for increnment parsing                     |
+
+#### Default rules and drop rules
+
+* Inline
+
+  | type        | description                                        |
+  | ----------- | -------------------------------------------------- |
+  | Bold        | \*\*bold\*\*                                       |
+  | Italic      | \*italic\*                                         |
+  | Strike      | \~\~strike through\~\~                             |
+  | Underline   | \<u\>underline\<u\>, \_!also underline!\_          |
+  | Code        | \`code\`                                           |
+  | Link        | \[link title\]\(link_url\)                         |
+  | Escape      | character like \\\*, \\\_, \\\~                    |
+  | Superscript | \^superscript\^                                    |
+  | Subscript   | \~subscript\~                                      |
+  | Highlight   | \=\=hightlight\=\=                                 |
+  | HtmlTag     | \<anyTag\>content</anyTag\>                        |
+  | Math        | \$latex math formula like \frac{1}{2}\$            |
+  | FootnoteSup | \[\^footnotesup\] will link to the end of the page |
+  | LinkTag     | [link tag] will be a link if supply a link block   |
+
+  if you don't want some provided inline features, you can easily drop it by using
+
+  ```tsx
+  import {Markdowner} from "@iandx/markdowner"
+  Markdowner.dropRule.inline(["Math", "LinkTag"])
+  ```
+
+* block
+
+  | type          | blockType | description                                                  |
+  | ------------- | --------- | ------------------------------------------------------------ |
+  | Heading       | leaf      | # this is heading1<br />this is also heading1<br />\=\=\=\== |
+  | Blockquote    | leaf      | > blockquote<br />>> level2                                  |
+  | CodeBlock     | leaf      | \`\`` javascript<br />  function test() {<br />console.log("hi")<br />}<br />``` |
+  | Divider       | leaf      | ----[dashed]                                                 |
+  | Image         | leaf      | \!\[alt_content\](url hover_title 50% center)                |
+  | MathBlock     | leaf      | \$\$<br />Math block \sqrt{a}<br />\$\$                      |
+  | Latex         | leaf      | \$\$<br />Latex block \sqrt{a}<br />\$\$                     |
+  | Footnote      | leaf      | \[^footnotesup\]: content                                    |
+  | LinkTagBlock  | leaf      | \[^linkTag\]: replaced url                                   |
+  | Comment       | leaf      | // any comment                                               |
+  | UnorderedList | container | * unordered list<br />+ also unordered list<br />- still unordered list |
+  | OrderedList   | container | 1. OrderedList<br />1. will display 2 in this line           |
+  | CheckList     | container | - [x] GFM to-do list                                         |
+
+  if you don't want some provided inline features, you can easily drop it by using
+
+  ```ts
+  import {Markdowner} from "@iandx/markdowner"
+  Markdowner.dropRule.block(["Comment", "Image", "Divider"])
+  ```
+
+
+#### Add new rules
+
+* inline
+
+  
 
 ## Advanced
+
 ### MarkdownerView
 API
 
-| props | describtion                | type | default |
-|---|----------------------------|---|-----|
-| content | the content will be parsed | string |     |
-| incrementalParse | is using incremental parse | boolean | false |
 
 ### Markdowner
 
 API
 
 | function | description                        | parameter | 
- |------------------------------------|-----------|------------|
-| init     | to certain props init a Markdowner | object    |
-| parse    | return a markdonwerTree array      | string    |
+|------------------------------------|-----------|----------|
+| init     | to certain props init a Markdowner | object   |
+| parse    | return a markdonwerTree array      | string   |
 Usage
 ```javascript
 import { Markdowner } from '@iandx/markdowner'

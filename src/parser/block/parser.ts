@@ -212,14 +212,22 @@ export namespace C {
             let blockASTs: BlockAST[] = []
             let container = new Container()
             let preBlockAST: BlockAST | undefined = undefined
+            let preIndent = 0
+            let zeroCounterIndent = 0
             for (let blockAST of splitBlockASTs) {
                 if (blockAST.type === "NewLine") {
                     preBlockAST = blockAST
                     continue
                 }
-                blockAST.level = Math.floor((blockAST.raw.match(new RegExp(`^\\n?( {${t}})*(?=[^ ])`, "g")) ?? [""])[0].length / 2)
+                // ---- solve indent
+                let newIndent = (blockAST.raw.replace(/^\n/, "").match(new RegExp(` *(?=[^ ])`, "g")) ?? [""])[0].length
+                let subtractedIndent = newIndent - preIndent
+                if (subtractedIndent < 0) subtractedIndent = newIndent - zeroCounterIndent
+                blockAST.level = Math.floor(subtractedIndent / t) + (preBlockAST?.level ?? 0)
+                if (blockAST.level !== preBlockAST?.level) zeroCounterIndent = newIndent
+                preIndent = newIndent
 
-                if (blockAST.level > container.level + 1 || (blockAST.raw.startsWith(" ") && blockAST.level === 0)) {
+                if (blockAST.level > container.level + 1) {
                     blockAST.type = "Paragraph"
                     blockAST.isContainer = false
                     blockAST.rule = undefined

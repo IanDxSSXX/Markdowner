@@ -2,6 +2,7 @@ import {InlineMarkdownTagExtend, InlineMarkdownTag} from "./inline/regex";
 import {BlockMarkdownTagExtend, BlockMarkdownTag} from "./block/regex";
 import {flattened} from "../base/utils";
 import {uid} from "../base/utils";
+import {MarkdownAST} from "../base/syntaxTree";
 
 export interface InlineMarkdownRules {
     [key: string]: InlineMarkdownTag | InlineMarkdownTagExtend
@@ -16,11 +17,85 @@ export type DefaultBlockRules = "Heading" | "OrderedList" | "UnorderedList" | "B
     "CheckList" | "Image" | "MathBlock" | "Latex" | "Footnote" | "LinkTagBlock" | "Comment"
 
 
+export const inlineDefaultRules: InlineMarkdownRules = {
+    // ---- the order doesn't matter, default order is 1
+    Italic: {
+        tags: {
+            round: "[em]",
+            exact: [
+                /\*(?!\s)(?:(?:[^*]*?(?:\*\*[^*]+?\*\*[^*]*?)+?)+?|[^*]+)\*/,
+            ]
+        },
+        trimText: (text: string) => text.replace(/^\*|\*$/g, ""),
+    },
+    Bold: {
+        tags: {
+            round: "[bold]",
+            exact: [
+                /\*\*(?!\s)(?:[^*]+?|(?:[^*]*(?:\*[^*]+\*[^*]*)+?)+?)\*\*/,
+            ]
+        },
+        trimText: (text: string) => text.replace(/^\*\*|\*\*$/g, ""),
+        order: 0
+    },
+    Strike: {
+        tags: {round: ["~~", "[strike]"]},
+        order: 0 // prior to subscript
+    },
+    Underline: {wrap: ["<u>", "</u>"], round: ["_", "[underline]"]},
+    Code: {
+        tags: {round: ["`", "[code]"]},
+        recheckMatch: raw => (raw.match(/`/g) ?? []).length % 2 === 0
+    },
+    Link: {
+        tags: {wrap: ["[", /]\(.+?\)/]},
+        getProps: (text: string) => ({linkUrl: text.match(/\(.+?\)$/)![0].replaceAll(/[()]/g, "")}),
+    },
+    Escape: {
+        tags: {exact: /\\[*~<>_=`$\\[\]]/},
+        trimText: text => text.replace("\\", ""),
+        order: -1000 // ---- must be the first
+    },
+    Superscript: {round: "^"},
+    Subscript: {round: "~"},
+    Highlight: {round: "=="},
+    HtmlTag: {
+        tags: {wrap: [/<[a-zA-Z]+(?: .+?=.+?)* *>/, /<\/[a-zA-Z]+>/], exact: /<[a-zA-Z]+\/>/},
+        recheckMatch: raw => {
+            if (/<[a-zA-Z]+\/>/.test(raw)) return true
+            let leftTag = raw.match(/<[a-zA-Z]+/)![0]
+            let rightTag = raw.match(/<\/[a-zA-Z]+>/)![0]
+            return leftTag.replaceAll(/[<>]/g, "").trim() === rightTag.replaceAll(/[<>/]/g, "").trim()
+        },
+        trimText: raw => raw,
+        allowNesting: false
+    },
+    Math: {
+        tags: {round: "$"},
+        allowNesting: false,
+    },
+    FootnoteSup: {
+        tags: {wrap: ["[^", "]"]},
+        getProps: (text) => {
+            let noteName = text.replaceAll(/[[\]^]/g, "")
+            return {noteName, footnoteSupId: uid()}
+        },
+        order: -2,
+        allowNesting: false
+    },
+    LinkTag: {
+        tags: {wrap: ["[", "]"]},
+        order: -1,
+        getProps: raw => ({tagName: raw.replaceAll(/[[\]]/g, "").trim()})
+    },
+
+}
+
 export const blockDefaultRules: BlockMarkdownRules = {
     Heading: {
         tags: {
             leading: /#{1,5} /,
-            exact: [/(?:\n|^).+? ?\n===+ */, /(?:\n|^).+? ?\n---+ */]
+            exact: [/.+?\n===+ */, /(?:\n|^).+? ?\n---+ */]
         },
         getProps: (text) => {
             let headingLevel: number
@@ -36,16 +111,16 @@ export const blockDefaultRules: BlockMarkdownRules = {
         trimText: text => text.replaceAll(/\n((===+)|(---+))/g, "").replaceAll(/^#{1,5} /g, "")
     },
     OrderedList: {
-        tags: {leading: /(?: {2})*[0-9]\. /},
+        tags: {leading: / *[0-9]\. /},
         getProps: (text) => ({start: +text.match(/\d+/g)![0]}),
         blockType: "container"
     },
     UnorderedList: {
-        tags: {leading: [/(?: {2})*[*+-] /]},
+        tags: {leading: [/ *[*+-] /]},
         blockType: "container"
     },
     Blockquote: {
-        tags: {exact: /(?:\n|^)(?:(?:> *)+ .+?(?:\n|$))*(?:> *)+ .+?(?=\n|$)/},
+        tags: {exact: /(?:(?:> *)+ .+?(?:\n|$))*(?:> *)+ .+?/},
         parseContent: (text, handler) => {
             let newText = text.replaceAll(/\n> */g, "\n").replaceAll(/^> */g, "")
             let parser = handler.parser.new()
@@ -53,7 +128,7 @@ export const blockDefaultRules: BlockMarkdownRules = {
         }
     },
     CodeBlock: {
-        tags: {round: "```"},
+        tags: {round: / *```/},
         parseContent: text => {
             text = text.replace(/^```|```$/g, "")
             let language = (text.match(/^.+?\n/g) ?? ["text"])[0].replace("```", "").trim()
@@ -63,16 +138,16 @@ export const blockDefaultRules: BlockMarkdownRules = {
     },
     Table: {
         tags: {
-            exact: /\|(?: .+? \|)+\n\|(?: [-*:]{1,2}-+[-*:]{1,2}? \|)+(?:\n\|(?: .+? \|)+)*/
+            exact: / *\|(?:.+?\|)+\n *\|(?: *[-*:]{1,2}-+[-*:]{1,2}? *\|)+(?:\n *\|(?:.+?\|)+)*/
         },
-        parseContent: (text) => {
+        parseContent: (text, handler) => {
             let header: string[]
 
             let allRows = text.split("\n").filter(r=>r!=="")
             header = allRows[0].split("|").map(h=>h.trim()).filter(h=>h!=="")
             let headerAligns: ("left"|"center"|"right")[] = Array(header.length).fill("center")
             let rowAligns: ("left"|"center"|"right")[] = Array(header.length).fill("left")
-            let rows: string[][] = []
+            let rows: MarkdownAST[][][] = []
 
             if (allRows.length !== 1) {
                 let alignTags = allRows[1].split("|").map(i=>i.trim()).filter(i=>i!=="")
@@ -94,7 +169,7 @@ export const blockDefaultRules: BlockMarkdownRules = {
                         rowAligns[idx] = "center"
                     }
                 }
-                rows = allRows.slice(2).map(r=>r.split("|").map(i=>i.trim()).filter(i=>i!==""))
+                rows = allRows.slice(2).map(r=>r.trim().split("|").filter(i=>i!=="").map(i=>handler.parser.inlineParser.new().parse(i.trim())))
             }
             return {header, rows, headerAligns, rowAligns}
 
@@ -115,7 +190,7 @@ export const blockDefaultRules: BlockMarkdownRules = {
         getProps: text => ({dividerType: (text.match(/dashed|dotted|solid/) ?? ["solid"])[0]})
     },
     CheckList: {
-        tags: {leading: /(?: {2})*- \[[ x]] /},
+        tags: {leading: / *- \[[ x]] /},
         blockType: "container",
         order:0,
         getProps: text => ({isChecked: text.match(/(?: {2})*- \[[ x]] /)![0].includes("x")})
@@ -188,77 +263,5 @@ export const blockDefaultRules: BlockMarkdownRules = {
         getProps: ()=>({visible: false})
     }
 
-
-}
-
-export const inlineDefaultRules: InlineMarkdownRules = {
-    // ---- the order doesn't matter, default order is 1
-    Italic: {
-        tags: {
-            round: "[em]",
-            exact: [
-                /\*(?!\s)(?:(?:[^*]*?(?:\*\*[^*]+?\*\*[^*]*?)+?)+?|[^*]+)\*/,
-            ]
-        },
-        trimText: (text: string) => text.replace(/^\*|\*$/g, ""),
-    },
-    Bold: {
-        tags: {
-            round: "[bold]",
-            exact: [
-                /\*\*(?!\s)(?:[^*]+?|(?:[^*]*(?:\*[^*]+\*[^*]*)+?)+?)\*\*/,
-            ]
-        },
-        trimText: (text: string) => text.replace(/^\*\*|\*\*$/g, ""),
-        order: 0
-    },
-    Strike: {
-        tags: {round: ["~~", "[strike]"]},
-        order: 0 // prior to subscript
-    },
-    Underline: {wrap: ["<u>", "</u>"], round: ["_", "[underline]"]},
-    Code: {
-        tags: {round: ["`", "[code]"]},
-        recheckMatch: raw => (raw.match(/`/g) ?? []).length % 2 === 0
-    },
-    Link: {
-        tags: {wrap: ["[", /]\(.+?\)/]},
-        getProps: (text: string) => ({linkUrl: text.match(/\(.+?\)$/)![0].replaceAll(/[()]/g, "")}),
-    },
-    Escape: {
-        tags: {exact: /\\[*~<>_=`$\\]/},
-        trimText: text => text.replace("\\", ""),
-        order: -1000 // ---- must be the first
-    },
-    Superscript: {round: "^"},
-    Subscript: {round: "~"},
-    Highlight: {round: "=="},
-    HtmlTag: {
-        tags: {wrap: [/<[a-zA-Z]+>/, /<\/[a-zA-Z]+>/]},
-        recheckMatch: raw => {
-            let leftTag = raw.match(/<[a-zA-Z]+>/)![0]
-            let rightTag = raw.match(/<\/[a-zA-Z]+>/)![0]
-            return leftTag.replaceAll(/[<>]/g, "").trim() === rightTag.replaceAll(/[<>/]/g, "").trim()
-        },
-        getProps: text => ({tag: text.match(/<[a-zA-Z]+>/)![0].replaceAll(/[<>]/g, "").trim()})
-    },
-    Math: {
-        tags: {round: "$"},
-        allowNesting: false,
-    },
-    FootnoteSup: {
-        tags: {wrap: ["[^", "]"]},
-        getProps: (text) => {
-            let noteName = text.replaceAll(/[[\]^]/g, "")
-            return {noteName, footnoteSupId: uid()}
-        },
-        order: -2,
-        allowNesting: false
-    },
-    LinkTag: {
-        tags: {wrap: ["[", "]"]},
-        order: -1,
-        getProps: raw => ({tagName: raw.replaceAll(/[[\]]/g, "").trim()})
-    },
 
 }

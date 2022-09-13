@@ -62,6 +62,18 @@ export class ASTHelper {
         return currTrees
     }
 
+    asyncParse(content: string): Promise<MarkdownAST[]> {
+        return new Promise<MarkdownAST[]>((resolve) => {
+            resolve(this.markdowner.parse(content))
+        })
+    }
+
+    asyncIncrementalParse(content: string): Promise<MarkdownAST[]> {
+        return new Promise<MarkdownAST[]>((resolve) => {
+            resolve(this.markdowner.parse(content))
+        })
+    }
+
     static dropId(trees: MarkdownAST[]) {
         let treesString = JSON.stringify(trees)
         treesString = treesString.replaceAll(

@@ -6,12 +6,11 @@ import {InlineMarkdownTag, InlineMarkdownTagExtend} from "../parser/inline/regex
 import {MarkdownerHelper} from "./helper";
 import {MarkdownAST} from "./syntaxTree";
 import {ReactUIBase} from "@iandx/reactui/core";
-import {ReactElement} from "react";
 
 export interface MarkdownerBlockRule {
     ruleName: string
     rule: BlockMarkdownTag | BlockMarkdownTagExtend
-    view: (content: string|MarkdownAST[]|any, props: any)=>ReactUIBase|ReactElement
+    view: (content: string|MarkdownAST[]|any, props: any)=>ReactUIBase
 }
 
 export class RuleDropper {

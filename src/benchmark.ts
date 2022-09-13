@@ -55,7 +55,7 @@ async function mdIterParse(fileName="test1", repeatNum=1) {
 async function mdIterRender(fileName="test1", repeatNum=1) {
     let content = (await readMDFile(fileName)).repeat(repeatNum)
     let markdownerTime = calTime(() => {
-        let a = renderToString(MarkdownerView({content}))
+        let a = renderToString(MarkdownerView({content}).asReactElement())
     })
 
     let markdownItTime = calTime(() => {

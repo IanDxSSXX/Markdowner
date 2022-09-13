@@ -19,14 +19,13 @@ import {ForEach, RUITag, RUIFragment, range, uid, ConditionView} from "@iandx/re
 import {Markdowner} from "../base";
 import {MdOutlineReply, MdCircle} from "react-icons/md"
 import {ReactUIBase} from "@iandx/reactui/core";
-import {ReactElement} from "react";
 import {latexStyle} from "../.supports/latexStyles/styles";
 import {Indexing} from "../base/utils";
 import {InlineRUIElements, MarkdownDocument} from "./view";
 import {MarkdownerHelper} from "../base/helper";
 
 
-export type MarkdownerViewFunc = (content: string|MarkdownAST[]|ContainerItem[]|any, props: any)=>ReactUIBase|ReactElement
+export type MarkdownerViewFunc = (content: string|MarkdownAST[]|ContainerItem[]|any, props: any)=>ReactUIBase
 export interface MarkdownerRuleMap {[key:string]: MarkdownerViewFunc}
 export const defaultInlineMap: MarkdownerRuleMap = {
     Text: (content) =>

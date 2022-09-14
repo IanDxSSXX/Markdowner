@@ -5,7 +5,6 @@ import {defaultBlockMap, defaultInlineMap, MarkdownerViewFunc} from "./ruleMap";
 import {Div, Span} from "@iandx/reactui/tag";
 import {ReactElement, useMemo} from "react";
 import {ReactUIBase} from "@iandx/reactui/core";
-import {isInstanceOf, uid} from "../base/utils";
 import React from "react"
 import {MarkdownerHelper} from "../base/helper";
 
@@ -18,6 +17,40 @@ namespace C {
             this.blockMap = blockMap
             this.inlineMap = inlineMap
         }
+
+        documentView = RUI(({markdownASTs, isDocument}: { markdownASTs: MarkdownAST[], isDocument: boolean }) => {
+            let newMarkdownASTs = markdownASTs
+                .filter((markdownAST: MarkdownAST) => markdownAST.props?.visible ?? true)
+                .map((markdownAST: MarkdownAST) => ({
+                    ast: markdownAST,
+                    order: markdownAST.props?.elementOrder ?? 1
+                }))
+                .sort((a: any, b: any) => a.order - b.order)
+                .map(t => t.ast)
+
+            return (
+                List(newMarkdownASTs, (markdownAST: MarkdownAST, idx) =>
+                    this.blockView({markdownAST})
+                        .key(!!markdownAST.id ? markdownAST.id : idx)
+                )
+                    .width("100%")
+                    .spacing((isDocument ?? false) ? "10px" : "0px")
+                    .alignment("leading")
+            )
+        })
+
+        private blockView = RUI(({markdownAST}: { markdownAST: MarkdownAST }) =>
+            useMemo(() =>
+                    Div(
+                        this.block(markdownAST)
+                    )
+                        .width("100%")
+                        .wordWrap("break-word")
+                        .whiteSpace("pre-wrap")
+                        .margin("0px")
+                        .className(`Markdowner-Block-${markdownAST.type}`)
+                , [markdownAST.id ?? markdownAST.content])
+        )
 
         block(markdownAST: MarkdownAST): ReactUIBase {
             let blockFunc = this.blockMap[markdownAST.type]
@@ -66,36 +99,7 @@ export const MarkdownerViewBase = new C.MarkdownerViewBase()
 export const InlineRUIElements = (inlineASTs: MarkdownAST[]) => MarkdownerViewBase.inlineRUIElements(inlineASTs)
 export const InlineElements = (inlineASTs: MarkdownAST[]) => MarkdownerViewBase.inlineElements(inlineASTs)
 
-export const MarkdownDocument = RUI(({markdownASTs, isDocument}: { markdownASTs: MarkdownAST[], isDocument: boolean }) => {
-    let newMarkdownASTs = markdownASTs
-        .filter((markdownAST: MarkdownAST) => markdownAST.props?.visible ?? true)
-        .map((markdownAST: MarkdownAST) => ({
-            ast: markdownAST,
-            order: markdownAST.props?.elementOrder ?? 1
-        }))
-        .sort((a: any, b: any) => a.order - b.order)
-        .map(t => t.ast)
+export const BlockRUIElements = (blockASTs: MarkdownAST[]) => MarkdownerViewBase.documentView({markdownASTs: blockASTs})
+export const BlockElements = (blockASTs: MarkdownAST[]) => MarkdownerViewBase.documentView({markdownASTs: blockASTs}).asReactElement()
 
-    return (
-        List(newMarkdownASTs, (markdownAST: MarkdownAST, idx) =>
-            Block({markdownAST})
-                .key(!!markdownAST.id ? markdownAST.id : idx)
-        )
-            .width("100%")
-            .spacing((isDocument ?? false) ? "10px" : "0px")
-            .alignment("leading")
-    )
-})
-
-const Block = RUI(({markdownAST}: { markdownAST: MarkdownAST }) =>
-    useMemo(() =>
-            Div(
-                MarkdownerViewBase.block(markdownAST)
-            )
-                .width("100%")
-                .wordWrap("break-word")
-                .whiteSpace("pre-wrap")
-                .margin("0px")
-                .className(`Markdowner-Block-${markdownAST.type}`)
-        , [markdownAST.id ?? markdownAST.content])
-)
+export const MarkdownerDocument = (blockASTs: MarkdownAST[]) => MarkdownerViewBase.documentView({markdownASTs: blockASTs, isDocument:true})

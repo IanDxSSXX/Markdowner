@@ -50,6 +50,7 @@ export const inlineDefaultRules: InlineMarkdownRules = {
     Link: {
         tags: {wrap: ["[", /]\(.+?\)/]},
         getProps: (text: string) => ({linkUrl: text.match(/\(.+?\)$/)![0].replaceAll(/[()]/g, "")}),
+        order: -3
     },
     Escape: {
         tags: {exact: /\\[*~<>_=`$\\[\]]/},
@@ -76,10 +77,7 @@ export const inlineDefaultRules: InlineMarkdownRules = {
     },
     FootnoteSup: {
         tags: {wrap: ["[^", "]"]},
-        getProps: (text) => {
-            let noteName = text.replaceAll(/[[\]^]/g, "")
-            return {noteName, footnoteSupId: uid()}
-        },
+        getProps: (text) => ({footnoteSupId: uid()}),
         order: -2,
         allowNesting: false
     },

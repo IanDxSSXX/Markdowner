@@ -1,14 +1,20 @@
 import {inlineDefaultRules, InlineMarkdownRules, blockDefaultRules, BlockMarkdownRules} from "../parser/rules";
 import {MarkdownBlockParser, C as BC} from "../parser/block/parser";
 import {MarkdownAST} from "./syntaxTree";
-import {uid} from "./utils";
-import {MarkdownDocument, MarkdownerViewBase, InlineRUIElements, InlineElements} from "../renderer/view";
+
+import {
+    BlockRUIElements,
+    MarkdownerViewBase,
+    InlineRUIElements,
+    InlineElements,
+    BlockElements,
+    MarkdownerDocument
+} from "../renderer/view";
 import {ASTHelper, MarkdownerHelper} from "./helper";
-import {defaultBlockMap, defaultInlineMap, MarkdownerRuleMap, MarkdownerViewFunc} from "../renderer/ruleMap";
+import {defaultBlockMap, defaultInlineMap, MarkdownerRuleMap} from "../renderer/ruleMap";
 import {Div} from "@iandx/reactui/tag";
-import {RUI, useRUIState} from "@iandx/reactui";
-import {RuleAdder, RuleDropper} from "./rules";
-import {useEffect} from "react";
+import {RUI} from "@iandx/reactui";
+import {MarkdownerBlockRuleInterface, MarkdownerInlineRuleInterface, RuleAdder, RuleDropper} from "./rules";
 
 export namespace C {
     interface MarkdownerProps {
@@ -85,19 +91,19 @@ export namespace C {
 
             MarkdownerViewBase.init(this.blockRuleMap, this.inlineRuleMap)
             return  Div(
-                MarkdownDocument({markdownASTs, isDocument: true})
+                MarkdownerDocument(markdownASTs)
             ).className("Markdowner-Document-root")
         })
     }
-
 }
+
 export const Markdowner = new C.Markdowner()
 export function RUIMarkdowner(props: C.MarkdownerViewProps) {
     return Markdowner.view(props)
 }
-
 export function ReactMarkdowner(props: C.MarkdownerViewProps) {
     return Markdowner.view(props).asReactElement()
 }
 
-export {InlineRUIElements, InlineElements}
+export {InlineRUIElements, InlineElements, BlockRUIElements, BlockElements}
+export type {MarkdownerBlockRuleInterface, MarkdownerInlineRuleInterface}

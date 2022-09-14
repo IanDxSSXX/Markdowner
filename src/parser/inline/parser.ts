@@ -3,8 +3,6 @@ import {InlineTagHandler} from "./regex";
 import {inlineDefaultRules, InlineMarkdownRules} from "../rules";
 import {capturingRegExp} from "../../base/utils";
 import {uid} from "../../base/utils";
-import {C as BC} from "../block/parser"
-
 
 export namespace C {
     // ---- allow for 10^16 tokens
@@ -71,21 +69,22 @@ export namespace C {
 
                     let content;
 
+                    let rawContent = storeContent
                     if (this.retriveRegex.test(storeContent)) {
+                        let newTrimText
                         if (rule.allowNesting) {
-                            [trimText, content] = this.retriveMatchedStore(trimText, matchedStore)
+                            [newTrimText, content] = this.retriveMatchedStore(trimText, matchedStore)
                         } else {
-                            trimText = this.retriveMatchedStore(trimText, matchedStore)[0]
-                            content = trimText
+                            newTrimText = this.retriveMatchedStore(trimText, matchedStore)[0]
+                            content = newTrimText
                         }
+                        rawContent = storeContent.replace(trimText, newTrimText)
+                        trimText = newTrimText
                     } else if (rule.allowNesting && trimText !== storeContent) {
                         content = this.new().parse(trimText)
                     } else {
                         content = trimText
                     }
-
-
-                    let rawContent = rule.trimedTextAddTag(trimText)
 
                     // ---- if not pass recheck, merge it to previous
                     if (rule.useRecheckMatch && !rule.recheckMatch(rawContent)) {
@@ -126,7 +125,6 @@ export namespace C {
                     this.usedRuleHandlers.push(rule)
                 }
             }
-
             if (this.usedRuleHandlers.length === 0) return [this.generateTextAST(content)]
 
             let [replacedContent, matchedStore] = this.split(content)

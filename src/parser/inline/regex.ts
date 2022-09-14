@@ -1,5 +1,5 @@
 import {correctRegExpKeywords} from "../../base/utils";
-import {C, MarkdownInlineParser} from "./parser";
+import {C} from "./parser";
 
 // ---- declaring
 export type InlineInlineMarkdownTagType = string | RegExp
@@ -145,15 +145,4 @@ export class InlineTagHandler {
         return trimText
     }
 
-
-    trimedTextAddTag(trimText: string): string {
-        if (!this.currentTag) return trimText
-        if (!!this.currentTag.round) {
-            return this.currentTag.round + trimText + this.currentTag.round
-        }
-        if (!!this.currentTag.wrap) {
-            return this.currentTag.wrap[0] + trimText + this.currentTag.wrap[1]
-        }
-        return trimText
-    }
 }

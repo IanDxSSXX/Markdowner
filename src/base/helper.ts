@@ -5,6 +5,10 @@ export class MarkdownerHelper {
     static warn(position: string, warning: string) {
         console.warn(`Markdowner-${position}: ${warning}`)
     }
+
+    static throw(position: string, throwMessage: string) {
+        throw `Markdowner-${position}: ${throwMessage}`
+    }
 }
 
 export class ASTHelper {

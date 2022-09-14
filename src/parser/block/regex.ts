@@ -1,6 +1,5 @@
 import {correctRegExpKeywords} from "../../base/utils";
 import {inlineDefaultRules, InlineMarkdownRules} from "../rules";
-import {MarkdownInlineParser} from "../inline/parser";
 import {C} from "./parser";
 import {MarkdownerHelper} from "../../base/helper";
 

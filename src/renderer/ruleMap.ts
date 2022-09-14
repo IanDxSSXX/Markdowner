@@ -21,7 +21,7 @@ import {MdOutlineReply, MdCircle} from "react-icons/md"
 import {ReactUIBase} from "@iandx/reactui/core";
 import {latexStyle} from "../.supports/latexStyles/styles";
 import {Indexing} from "../base/utils";
-import {InlineRUIElements, MarkdownDocument} from "./view";
+import {BlockRUIElements, InlineRUIElements} from "./view";
 import {MarkdownerHelper} from "../base/helper";
 import {ReactElement} from "react";
 
@@ -141,7 +141,7 @@ export const defaultBlockMap: MarkdownerRuleMap = {
                         Span(`${bulletList[level%bulletList.length]}  `).paddingLeft("3px"),
                         ...InlineRUIElements(item.item)
                     ),
-                    MarkdownDocument({markdownASTs: item.content})
+                    BlockRUIElements(item.content)
                         .paddingLeft("20px")
                 )
             ),
@@ -160,7 +160,7 @@ export const defaultBlockMap: MarkdownerRuleMap = {
                         `${wrap[0]}${index(start+idx)}${wrap[1]}.  `,
                         ...InlineRUIElements(item.item)
                     ),
-                    MarkdownDocument({markdownASTs: item.content})
+                    BlockRUIElements(item.content)
                         .paddingLeft("20px")
                 )
             ),
@@ -199,7 +199,7 @@ export const defaultBlockMap: MarkdownerRuleMap = {
 
     Blockquote: (content) =>
         Blockquote(
-            MarkdownDocument({markdownASTs: content})
+            BlockRUIElements(content)
         )
             .padding("4px 0px 4px 18px")
             .borderLeft("2px solid gray")
@@ -228,7 +228,7 @@ export const defaultBlockMap: MarkdownerRuleMap = {
                         "  ",
                         ...InlineRUIElements(item.item)
                     ).width("100%"),
-                    MarkdownDocument({markdownASTs: item.content})
+                    BlockRUIElements(item.content)
                         .paddingLeft("20px")
                 )
             )
@@ -327,9 +327,9 @@ export const defaultBlockMap: MarkdownerRuleMap = {
             Span(
                 Span(`[${noteName}]\t`),
                 ...InlineRUIElements(content),
-                ...ForEach(footnoteSubTrees, (footnoteSub: MarkdownAST) =>
+                ...ForEach(footnoteSubTrees, (footnoteSup: MarkdownAST) =>
                     A(RUITag(MdOutlineReply)())
-                        .setProp("href", `#Markdowner-FootnoteSup-${noteName}-${footnoteSub.props.footnoteSupId}`)
+                        .setProp("href", `#Markdowner-FootnoteSup-${noteName}-${footnoteSup.props.footnoteSupId}`)
                         .color("gray")
                         .textDecoration("none")
                 )

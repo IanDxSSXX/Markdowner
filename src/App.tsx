@@ -1,19 +1,23 @@
 import {HStack, VStack, Text} from "@iandx/reactui/component";
 import {range, useRUIState, RUITag, RUI, RUIElement} from "@iandx/reactui";
-import {InlineElements, InlineRUIElements, Markdowner, ReactMarkdowner, RUIMarkdowner} from "./base";
+import {
+    InlineElements,
+    InlineRUIElements,
+    Markdowner,
+    MarkdownerBlockRuleInterface,
+    ReactMarkdowner,
+    RUIMarkdowner
+} from "./base";
 import {Div, Span} from "@iandx/reactui/tag";
 import {benchmark} from "./benchmark";
 import {renderToString} from "react-dom/server";
 
 
-
-Markdowner.init({softBreak: true})
-Markdowner.dropRule.block(["Heading"])
-Markdowner.addRule.block({
+let a: MarkdownerBlockRuleInterface = {
     name: "Heading",
     rule: {
         tags: {
-            leading: /#{1,5} /,
+            leading: /\(#{1,5} \)/,
             exact: [/(?:\n|^).+?\n===+ */, /(?:\n|^).+? ?\n---+ */]
         },
         getProps: (raw) => {
@@ -36,7 +40,10 @@ Markdowner.addRule.block({
     },
     view: (content: any, {headingLevel, blockProp}) =>
         <span style={{fontSize:`${(5 - (headingLevel ?? 1)) * 6 + 15}px`}}>{content+(!!blockProp ? blockProp.a:"")}</span>
-})
+}
+Markdowner.init({softBreak: true})
+Markdowner.dropRule.block(["Heading"])
+Markdowner.addRule.block(a)
 Markdowner.addRule.inline({
     name: "What",
     rule: { tags:{round: "hh" }, allowNesting: false},

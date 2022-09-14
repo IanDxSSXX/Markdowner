@@ -1,15 +1,11 @@
 import {ContainerItem, generateMarkdownerAST as geneAST, MarkdownAST} from "../../base/syntaxTree";
 import {
-    BlockMarkdownTagExtend,
-    BlockMarkdownTagType,
     BlockTagHandler,
-    hardLineBreakRegex,
 } from "./regex";
 import {blockDefaultRules, BlockMarkdownRules} from "../rules";
-import {capturingRegExp, correctRegExpKeywords, objectValid} from "../../base/utils";
+import {capturingRegExp} from "../../base/utils";
 import {inlineDefaultRules, InlineMarkdownRules} from "../rules";
 import {C as IC, MarkdownInlineParser} from "../inline/parser"
-import {InlineTagHandler} from "../inline/regex";
 
 
 export namespace C {
@@ -17,10 +13,10 @@ export namespace C {
         type: string
         raw: string
         isContainer: boolean
+        level: number
         rule?: BlockTagHandler
         containerLevel?: number
         containerItems?: { item:BlockAST, content:BlockAST[] }[]
-        level?: number
     }
     function trimNewLine(content: string) {
         return content.replace(new RegExp(`(^\\n)|(\\n$)`), "").trimEnd()
@@ -115,7 +111,7 @@ export namespace C {
         state: {[key:string]: any} = {}
         geneId: boolean = false
 
-        newLineRegexString = /(?:(?:\n|^)| {2} *|\\ *) */.source
+        newLineRegexString = /(?:(?:\n|^) *| {2} *|\\)/.source
 
         constructor(blockRules: BlockMarkdownRules = blockDefaultRules, inlineRules: InlineMarkdownRules = inlineDefaultRules,
                     tabSpaceNum=2, softBreak=true, geneId=false, newInstance=false) {
@@ -177,11 +173,10 @@ export namespace C {
 
         split(content: string) {
             if (this.splitString === "") return [this.geneMarkdownAST({
-                type: "Paragraph", raw: content, isContainer: false, containerItems: []
+                type: "Paragraph", raw: content, level: 0, isContainer: false, containerItems: []
             })]
             let splitContent = content.split(capturingRegExp(this.splitString))
 
-            let t = this.tabSpaceNum
             let splitBlockASTs: BlockAST[] = []
             let isMatched = true
 
@@ -189,10 +184,10 @@ export namespace C {
                 isMatched = !isMatched
                 if (block === "") continue
                 let blockAST: BlockAST
-                if (new RegExp(`${this.newLineRegexString}(?=$)`, "g").test(block)) {
-                    blockAST = {type: "NewLine", raw: block, isContainer: false}
+                if (new RegExp(`^${this.newLineRegexString}$`, "g").test(block)) {
+                    blockAST = {type: "NewLine", raw: block, isContainer: false, level:0}
                 } else {
-                    blockAST = {type: "Paragraph", raw: block, isContainer: false}
+                    blockAST = {type: "Paragraph", raw: block, isContainer: false, level:0}
 
                     if (isMatched) {
                         for (let rule of Object.values(this.usedRuleHandlerMap)) {
@@ -211,9 +206,9 @@ export namespace C {
 
             let blockASTs: BlockAST[] = []
             let container = new Container()
-            let preBlockAST: BlockAST | undefined = undefined
+            let preBlockAST: BlockAST = {type: "NewLine", raw: "", level: 0, isContainer:false}
             let preIndent = 0
-            let zeroCounterIndent = 0
+            let indentArr: number[] = [0]
             for (let blockAST of splitBlockASTs) {
                 if (blockAST.type === "NewLine") {
                     preBlockAST = blockAST
@@ -222,9 +217,20 @@ export namespace C {
                 // ---- solve indent
                 let newIndent = (blockAST.raw.replace(/^\n/, "").match(new RegExp(` *(?=[^ ])`, "g")) ?? [""])[0].length
                 let subtractedIndent = newIndent - preIndent
-                if (subtractedIndent < 0) subtractedIndent = newIndent - zeroCounterIndent
-                blockAST.level = Math.floor(subtractedIndent / t) + (preBlockAST?.level ?? 0)
-                if (blockAST.level !== preBlockAST?.level) zeroCounterIndent = newIndent
+                if (subtractedIndent < 0) {
+                    blockAST.level = 0
+                    for (let [idx, _] of indentArr.entries()) {
+                        if (newIndent > indentArr[idx]+this.tabSpaceNum-1) {
+                            blockAST.level = idx + 1
+                            break
+                        }
+                    }
+                } else if (subtractedIndent < this.tabSpaceNum) {
+                    blockAST.level = preBlockAST.level!
+                } else {
+                    blockAST.level = preBlockAST.level! + 1
+                }
+                indentArr[blockAST.level] = Math.max(newIndent, indentArr[blockAST.level]??0)
                 preIndent = newIndent
 
                 if (blockAST.level > container.level + 1) {
@@ -234,7 +240,7 @@ export namespace C {
                     blockAST.level = 0
                 }
 
-                if (blockAST.type === "Paragraph" && !!preBlockAST && preBlockAST.type !== "NewLine" &&
+                if (blockAST.type === "Paragraph" && preBlockAST.type !== "NewLine" &&
                     (preBlockAST.isContainer||["Paragraph", "AppendText"].includes(preBlockAST.type))) {
                     blockAST.type = "AppendText"
                 }

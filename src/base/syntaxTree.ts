@@ -1,5 +1,5 @@
 import {objectValid} from "./utils";
-import {uid} from "../base/utils";
+import {uid} from "./utils";
 
 export interface ContainerItem {
     item: MarkdownAST[] | any

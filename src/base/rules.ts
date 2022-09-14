@@ -4,15 +4,18 @@ import {BlockMarkdownTag, BlockMarkdownTagExtend} from "../parser/block/regex";
 import {defaultBlockMap, defaultInlineMap, MarkdownerViewFunc} from "../renderer/ruleMap";
 import {InlineMarkdownTag, InlineMarkdownTagExtend} from "../parser/inline/regex";
 import {MarkdownerHelper} from "./helper";
-import {MarkdownAST} from "./syntaxTree";
-import {ReactUIBase} from "@iandx/reactui/core";
 
-export interface MarkdownerBlockRule {
-    ruleName: string
-    rule: BlockMarkdownTag | BlockMarkdownTagExtend
-    view: (content: string|MarkdownAST[]|any, props: any)=>ReactUIBase
+export interface MarkdownerBlockRuleInterface {
+    name: string
+    rule: BlockMarkdownTag | BlockMarkdownTagExtend | "default"
+    view: MarkdownerViewFunc | "default"
 }
 
+export interface MarkdownerInlineRuleInterface {
+    name: string
+    rule: InlineMarkdownTag | InlineMarkdownTagExtend | "default"
+    view: MarkdownerViewFunc | "default"
+}
 
 
 export class RuleDropper {
@@ -48,7 +51,7 @@ export class RuleAdder {
         this.markdowner = markdowner
     }
 
-    block({name,rule,view}:{name: string, rule: BlockMarkdownTag | BlockMarkdownTagExtend | "default", view: MarkdownerViewFunc | "default"}) {
+    block({name,rule,view}:MarkdownerBlockRuleInterface) {
         if (rule === "default") {
             rule = blockDefaultRules[name]
             if (rule === undefined) {
@@ -68,7 +71,13 @@ export class RuleAdder {
         this.markdowner.init(this.markdowner.markdownerProps)
     }
 
-    inline({name,rule,view}:{name: string, rule: InlineMarkdownTag | InlineMarkdownTagExtend | "default", view: MarkdownerViewFunc | "default"}) {
+    blocks(addedBlocks:MarkdownerBlockRuleInterface[]) {
+        for (let block of addedBlocks) {
+            this.block(block)
+        }
+    }
+
+    inline({name,rule,view}:MarkdownerInlineRuleInterface) {
         if (rule === "default") {
             rule = inlineDefaultRules[name]
             if (rule === undefined) {
@@ -86,5 +95,11 @@ export class RuleAdder {
         this.markdowner.inlineRules[name] = rule
         this.markdowner.inlineRuleMap[name] = view
         this.markdowner.init(this.markdowner.markdownerProps)
+    }
+
+    inlines(addedInlines:MarkdownerInlineRuleInterface[]) {
+        for (let inline of addedInlines) {
+            this.inline(inline)
+        }
     }
 }

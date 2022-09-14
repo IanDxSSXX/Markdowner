@@ -44,10 +44,10 @@ Markdowner.init({
 })
 ```
 | properties | type   | default | description                                                                  |
-|--------|---|------------------------------------------------------------------------------|-----------------|
-| tabSpaceNum    | number | 2 | a tab "\t" equals to how many spaces                               |
+|--------|---|------------------------------------------------------------------------------|------------------------------------------------------------------------------|
+| tabSpaceNum    | number | 2 | a tab "\t" equals to how many spaces                                         |
 | softBreak    | number | true | if set "true", "\n" will be recognized as a soft break instead of a new line |
-| geneId    | number | false | give each AST a unique id, useful for increnment parsing                     |
+| geneId    | number | false | give each AST a unique id, useful for increnmental parsing                   |
 
 #### Default rules and drop rules
 
@@ -79,21 +79,21 @@ Markdowner.init({
 
 * block
 
-  | type          | blockType | description                                                  |
-  | ------------- | --------- | ------------------------------------------------------------ |
-  | Heading       | leaf      | # this is heading1<br />this is also heading1<br />\=\=\=\== |
-  | Blockquote    | leaf      | > blockquote<br />>> level2                                  |
+  | type          | blockType | description                                                                      |
+  | ------------- |----------------------------------------------------------------------------------| ------------------------------------------------------------ |
+  | Heading       | leaf      | # this is heading1<br />this is also heading1<br />\=\=\=\==                     |
+  | Blockquote    | leaf      | > blockquote<br />>> level2                                                      |
   | CodeBlock     | leaf      | \`\`` javascript<br />  function test() {<br />console.log("hi")<br />}<br />``` |
-  | Divider       | leaf      | ----[dashed]                                                 |
-  | Image         | leaf      | \!\[alt_content\](url hover_title 50% center)                |
-  | MathBlock     | leaf      | \$\$<br />Math block \sqrt{a}<br />\$\$                      |
-  | Latex         | leaf      | \$\$<br />Latex block \sqrt{a}<br />\$\$                     |
-  | Footnote      | leaf      | \[^footnotesup\]: content                                    |
-  | LinkTagBlock  | leaf      | \[^linkTag\]: replaced url                                   |
-  | Comment       | leaf      | // any comment                                               |
-  | UnorderedList | container | * unordered list<br />+ also unordered list<br />- still unordered list |
-  | OrderedList   | container | 1. OrderedList<br />1. will display 2 in this line           |
-  | CheckList     | container | - [x] GFM to-do list                                         |
+  | Divider       | leaf      | ----[dashed]                                                                     |
+  | Image         | leaf      | \!\[alt_content\](url hover_title 50% center)                                    |
+  | MathBlock     | leaf      | \$\$<br />Math block \sqrt{a}<br />\$\$                                          |
+  | Latex         | leaf      | \$\$\$<br />Latex block \sqrt{a}<br />\$\$\$                                     |
+  | Footnote      | leaf      | \[^footnotesup\]: content                                                        |
+  | LinkTagBlock  | leaf      | \[^linkTag\]: replaced url                                                       |
+  | Comment       | leaf      | // any comment                                                                   |
+  | UnorderedList | container | * unordered list<br />+ also unordered list<br />- still unordered list          |
+  | OrderedList   | container | 1. OrderedList<br />1. will display 2 in this line                               |
+  | CheckList     | container | - [x] GFM to-do list                                                             |
 
   if you don't want some provided inline features, you can easily drop it by using
 
@@ -105,72 +105,33 @@ Markdowner.init({
 
 #### Add new rules
 
-* inline
-
-  
-
-## Advanced
-
-### MarkdownerView
-API
-
-
-### Markdowner
-
-API
-
-| function | description                        | parameter | 
-|------------------------------------|-----------|----------|
-| init     | to certain props init a Markdowner | object   |
-| parse    | return a markdonwerTree array      | string   |
-Usage
-```javascript
-import { Markdowner } from '@iandx/markdowner'
-
-Markdowner.init({softBreak: false})
-const markdownerASTs = Markdowner.parse('## Markdowner **fast** ')
-```
-### MarkdonwerTree
-Markdowner.parse will parse the text iteratively where there is a markdown syntax.
-We design a tree to contain the parsed result called MarkdonwerTrees.
-
-Note: The type of leaf node  must be "Text" or "Heading"
-
-The node of MarkdonwerTree has the following properties.
-
-| properties | description                                             | type   | value           |
-|------------|---------------------------------------------------------|--------|-----------------|
-| content    | its children which are also the markdownTrees or string |        |                 |
-| id         | block id                                                |        |                 |
-| level      | block level or inline level                             | string | "block"/"inline" |
-| props      | additional properties                                   | object |                 |
-| raw        | the text inclues markdown syntax                        | string |                 |
-| type       | the markdown type. e.g."OrderedList", "Heading"         | string |                 |
-
-### Custom Syntax
-First we will introduce the structure of the syntax rule. 
+inline
+First we will introduce the structure of the syntax rule.
 Following are the properties.
 
-`tags` A object to define syntax token
-* `leading` 
-* `round`
-* `wrap`
-* `exact`
+`tags` An object to define syntax token. You may use the following properties to config.
 
-`parseContent`
+* `leading`  A String which will be recognized as syntax token used before text, e.g. '##' 
+* `round`  A String which will be recognized as syntax token used around text, e.g. '**'
+* `wrap` A array which will be recognized as syntax token used in the left and right of the text. e.g. ['<tag>','</tag>']
+* `exact` A String or a regular expression
 
-`getProps`
+`trimText` A callback function which recieves a raw text and usually returns the text after triming the tags. Note: using leading, round, wrap, the parser will help you trim the tags token by default
 
-`recheckMatch`
+`parseContent` A callback function which recieve the trimmed text
+
+`getProps` A callback function which recieve the raw text, get the additional props, then return.
+
+`recheckMatch` A callback function which recieve the raw text to recheck if the raw text match the syntax token. 
 
 `order`
 
 Now, you may use `addRule` to custom your own syntax.
 
 `addRule({name,rule,view})`
-* `name` A string used to identify the rule.  
-* `rule` A object introducing before to describe the custom syntax.  
-* `view` A function which returns a React component matching your custom token.  
+* `name` A string used to identify the rule.
+* `rule` A object introducing before to describe the custom syntax.
+* `view` A function which returns a React component matching your custom token.
 
 Following is an example.
 ```javascript
@@ -228,3 +189,45 @@ Markdowner.dropRule.block(["Heading"])
 // remove a inline syntax rule
 Markdowner.dropRule.inline(["Italic"])
 ```
+
+  
+
+## Advanced
+
+### MarkdownerView
+API
+
+
+### Markdowner
+
+API
+
+| function | description                        | parameter | 
+|------------------------------------|-----------|----------|
+| init     | to certain props init a Markdowner | object   |
+| parse    | return a markdonwerTree array      | string   |
+Usage
+```javascript
+import { Markdowner } from '@iandx/markdowner'
+
+Markdowner.init({softBreak: false})
+const markdownerASTs = Markdowner.parse('## Markdowner **fast** ')
+```
+### MarkdonwerTree
+Markdowner.parse will parse the text iteratively where there is a markdown syntax.
+We design a tree to contain the parsed result called MarkdonwerTrees.
+
+Note: The type of leaf node  must be "Text" or "Heading"
+
+The node of MarkdonwerTree has the following properties.
+
+| properties | description                                             | type   | value           |
+|------------|---------------------------------------------------------|--------|-----------------|
+| content    | its children which are also the markdownTrees or string |        |                 |
+| id         | block id                                                |        |                 |
+| level      | block level or inline level                             | string | "block"/"inline" |
+| props      | additional properties                                   | object |                 |
+| raw        | the text inclues markdown syntax                        | string |                 |
+| type       | the markdown type. e.g."OrderedList", "Heading"         | string |                 |
+
+### Custom Syntax

@@ -1,4 +1,4 @@
-import {ContainerItem, generateMarkdownerAST as geneAST, MarkdownAST} from "../../base/syntaxTree";
+import {ContainerItem, generateMarkdownerAST as geneAST, MarkdownAST} from "../../base/ast";
 import {
     BlockTagHandler,
 } from "./regex";
@@ -111,7 +111,7 @@ export namespace C {
         state: {[key:string]: any} = {}
         geneId: boolean = false
 
-        newLineRegexString = /(?:(?:\n|^) *| {2} *|\\)/.source
+        newLineRegexString = /(?:\n *| {2} *|\\)/.source
 
         constructor(blockRules: BlockMarkdownRules = blockDefaultRules, inlineRules: InlineMarkdownRules = inlineDefaultRules,
                     tabSpaceNum=2, softBreak=true, geneId=false, newInstance=false) {
@@ -188,7 +188,6 @@ export namespace C {
                     blockAST = {type: "NewLine", raw: block, isContainer: false, level:0}
                 } else {
                     blockAST = {type: "Paragraph", raw: block, isContainer: false, level:0}
-
                     if (isMatched) {
                         for (let rule of Object.values(this.usedRuleHandlerMap)) {
                             if (rule.regex.test(block) && rule.recheckMatch(block)) {

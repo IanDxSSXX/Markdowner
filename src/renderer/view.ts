@@ -1,5 +1,5 @@
 import {ConditionView, ForEach, RUI, RUIElement, RUIFragment, RUITag, useRUIState} from "@iandx/reactui";
-import {MarkdownAST} from "../base/syntaxTree";
+import {MarkdownAST} from "../base/ast";
 import {List} from "@iandx/reactui/component";
 import {defaultBlockMap, defaultInlineMap, MarkdownerViewFunc} from "./ruleMap";
 import {Div, Span} from "@iandx/reactui/tag";
@@ -49,10 +49,10 @@ namespace C {
                         .whiteSpace("pre-wrap")
                         .margin("0px")
                         .className(`Markdowner-Block-${markdownAST.type}`)
-                , [markdownAST.id ?? markdownAST.content])
+                , [markdownAST.id ?? false, markdownAST.raw])
         )
 
-        block(markdownAST: MarkdownAST): ReactUIBase {
+        private block(markdownAST: MarkdownAST): ReactUIBase {
             let blockFunc = this.blockMap[markdownAST.type]
             let element
             if (!!blockFunc) {
@@ -65,23 +65,16 @@ namespace C {
             return this.toRUIElement(element)
         }
 
-        toRUIElement(element: ReactUIBase | ReactElement): ReactUIBase {
-            if ((element as any).IAmReactUI??false) {
-                return element as ReactUIBase
-            } else {
-                return RUIElement(element as ReactElement)
-            }
+        private inlineView = RUI(({markdownAST}: { markdownAST: MarkdownAST }) => {
+            return  useMemo(() =>
+                    this.inline(markdownAST)
+                        .className(`Markdowner-inline-${markdownAST.type}`)
+                , [markdownAST.id ?? false, markdownAST.raw])
         }
 
-        inlineRUIElements(inlineASTs: MarkdownAST[]) {
-            return inlineASTs.map(inlineAST => this.inlineElement(inlineAST))
-        }
+        )
 
-        inlineElements(inlineASTs: MarkdownAST[]) {
-            return React.Children.toArray(inlineASTs.map(inlineAST => this.inlineElement(inlineAST).asReactElement()))
-        }
-
-        private inlineElement(inlineAST: MarkdownAST): ReactUIBase {
+        private inline(inlineAST: MarkdownAST): ReactUIBase {
             let inlineFunc = this.inlineMap[inlineAST.type]
             let element
             if (!!inlineFunc) {
@@ -92,6 +85,25 @@ namespace C {
             }
             return this.toRUIElement(element)
         }
+
+        toRUIElement(element: ReactUIBase | ReactElement): ReactUIBase {
+            if ((element as any).IAmReactUI??false) {
+                return element as ReactUIBase
+            } else {
+                return RUIElement(element as ReactElement)
+            }
+        }
+
+        inlineRUIElements(inlineASTs: MarkdownAST[]) {
+            // return inlineASTs.map((inlineAST, idx) => this.inlineView({markdownAST:inlineAST}).key(inlineAST.id??idx))
+            return inlineASTs.map((inlineAST, idx) => this.inlineView({markdownAST:inlineAST}).key(inlineAST.id??idx))
+        }
+
+        inlineElements(inlineASTs: MarkdownAST[]) {
+            return this.inlineRUIElements(inlineASTs).map(el=>el.asReactElement())
+        }
+
+        
     }
 }
 

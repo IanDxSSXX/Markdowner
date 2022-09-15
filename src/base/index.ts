@@ -1,6 +1,6 @@
 import {inlineDefaultRules, InlineMarkdownRules, blockDefaultRules, BlockMarkdownRules} from "../parser/rules";
 import {MarkdownBlockParser, C as BC} from "../parser/block/parser";
-import {MarkdownAST} from "./syntaxTree";
+import {MarkdownAST} from "./ast";
 
 import {
     BlockRUIElements,
@@ -10,7 +10,7 @@ import {
     BlockElements,
     MarkdownerDocument
 } from "../renderer/view";
-import {ASTHelper, MarkdownerHelper} from "./helper";
+import {ASTHelper, IncrementalParse, MarkdownerHelper} from "./helper";
 import {defaultBlockMap, defaultInlineMap, MarkdownerRuleMap} from "../renderer/ruleMap";
 import {Div} from "@iandx/reactui/tag";
 import {RUI} from "@iandx/reactui";
@@ -61,6 +61,11 @@ export namespace C {
             return this.blockParser!.inlineParser!.new().parse(content)
         }
 
+        incrementalParse(content: string) {
+            this.init({...this.markdownerProps, geneId:true})
+            return IncrementalParse.parse(this.ast.trees, this.parse(content))
+        }
+
         parse(content: string): MarkdownAST[] {
             if (!this.blockParser) {
                 this.init()
@@ -87,7 +92,7 @@ export namespace C {
             } else {
                 newContent = content
             }
-            let markdownASTs = this.ast.incrementalParse(newContent)
+            let markdownASTs = this.incrementalParse(newContent)
 
             MarkdownerViewBase.init(this.blockRuleMap, this.inlineRuleMap)
             return  Div(

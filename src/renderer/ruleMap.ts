@@ -14,7 +14,7 @@ import {
     Blockquote
 } from "@iandx/reactui/tag";
 
-import {ContainerItem, MarkdownAST} from "../base/syntaxTree";
+import {ContainerItem, MarkdownAST} from "../base/ast";
 import {ForEach, RUITag, RUIFragment, range, uid, ConditionView} from "@iandx/reactui";
 import {Markdowner} from "../base";
 import {MdOutlineReply, MdCircle} from "react-icons/md"
@@ -30,15 +30,15 @@ export type MarkdownerViewFunc = (content: string|MarkdownAST[]|ContainerItem[]|
 export interface MarkdownerRuleMap {[key:string]: MarkdownerViewFunc}
 export const defaultInlineMap: MarkdownerRuleMap = {
     Text: (content) =>
-        Span(content),
+        content,
     Italic: (content) =>
-        Em(...InlineRUIElements(content)),
+        Em(InlineRUIElements(content)),
     Bold: (content) =>
-        Strong( ...InlineRUIElements(content)),
+        Strong( InlineRUIElements(content)),
     Strike: (content) =>
-        Span(...InlineRUIElements(content)).textDecoration("line-through"),
+        Span(InlineRUIElements(content)).textDecoration("line-through"),
     Code: (content) =>
-        Span(...InlineRUIElements(content))
+        Span(InlineRUIElements(content))
             .backgroundColor("#eeeeee")
             .borderRadius("3px")
             .color(`#e37d7d`)
@@ -47,21 +47,21 @@ export const defaultInlineMap: MarkdownerRuleMap = {
             .padding("0.2em 0.4em"),
     Link: (content, {linkUrl, cleanDisplay}) =>
         ConditionView(cleanDisplay??false, {
-            true: () => A(...InlineRUIElements(content))
+            true: () => A(InlineRUIElements(content))
                 .textDecoration("none")
                 .color("gray"),
-            false: () => A(...InlineRUIElements(content))
+            false: () => A(InlineRUIElements(content))
         }).setProp("href", linkUrl),
     Underline: (content) =>
-        Span(...InlineRUIElements(content)).textDecoration("underline"),
+        Span(InlineRUIElements(content)).textDecoration("underline"),
     Superscript: (content) =>
-        RUITag("sup")(...InlineRUIElements(content)),
+        RUITag("sup")(InlineRUIElements(content)),
     Subscript: (content) =>
-        RUITag("sub")(...InlineRUIElements(content)),
+        RUITag("sub")(InlineRUIElements(content)),
     Escape: (content) =>
-        Span(...InlineRUIElements(content)),
+        Span(InlineRUIElements(content)),
     Highlight: (content) =>
-        Span(...InlineRUIElements(content)).backgroundColor("Highlight"),
+        Span(InlineRUIElements(content)).backgroundColor("Highlight"),
     HtmlTag: (content) =>
         Span().setProp("dangerouslySetInnerHTML", {__html: content}),
     Math: (content) => {
@@ -98,7 +98,7 @@ export const defaultInlineMap: MarkdownerRuleMap = {
     LinkTag: (content, {tagName}: any) =>  {
         let linkBlocks = Markdowner.ast.findBlocks("LinkTagBlock", t=>t.props.tagName === tagName)
         return ConditionView(linkBlocks.length === 0, {
-            true: () => Span("[",...InlineRUIElements(content),"]"),
+            true: () => Span("[",InlineRUIElements(content),"]"),
             false: () => A(Span(tagName))
                 .setProp("href", linkBlocks[0].props.tagUrl)
         })
@@ -107,10 +107,10 @@ export const defaultInlineMap: MarkdownerRuleMap = {
 
 export const defaultBlockMap: MarkdownerRuleMap = {
     Paragraph: (content) =>
-        RUIFragment(...InlineRUIElements(content))
+        RUIFragment(InlineRUIElements(content))
     ,
     Heading: (content, {headingLevel}) =>
-        Span(...InlineRUIElements(content)).fontSize(`${(5 - (headingLevel ?? 1)) * 6 + 15}px`)
+        Span(InlineRUIElements(content)).fontSize(`${(5 - (headingLevel ?? 1)) * 6 + 15}px`)
     ,
     CodeBlock: ({language, content}) => {
         let blockTag: any
@@ -139,7 +139,7 @@ export const defaultBlockMap: MarkdownerRuleMap = {
                 Div(
                     Span(
                         Span(`${bulletList[level%bulletList.length]}  `).paddingLeft("3px"),
-                        ...InlineRUIElements(item.item)
+                        InlineRUIElements(item.item)
                     ),
                     BlockRUIElements(item.content)
                         .paddingLeft("20px")
@@ -158,7 +158,7 @@ export const defaultBlockMap: MarkdownerRuleMap = {
                 Div(
                     Span(
                         `${wrap[0]}${index(start+idx)}${wrap[1]}.  `,
-                        ...InlineRUIElements(item.item)
+                        InlineRUIElements(item.item)
                     ),
                     BlockRUIElements(item.content)
                         .paddingLeft("20px")
@@ -167,13 +167,13 @@ export const defaultBlockMap: MarkdownerRuleMap = {
         )
     }
    ,
-    Table: ({header, rows, headerAligns, rowAligns}) =>
+    Table: (headerAndRows: MarkdownAST[][][], {headerAligns, rowAligns}) =>
         Table(
             // ---- header
             Tbody(
                 Tr(
-                    ...ForEach(header, (h: string, idx: number) =>
-                        Th(h)
+                    ...ForEach(headerAndRows[0], (h: MarkdownAST[], idx: number) =>
+                        Th(InlineRUIElements(h))
                             .border("thin solid gray")
                             .borderCollapse("collapse")
                             .padding("5px")
@@ -182,10 +182,10 @@ export const defaultBlockMap: MarkdownerRuleMap = {
             )).width("100%"),
             // ---- rows
             Tbody(
-                ...ForEach(rows, (row: MarkdownAST[][]) =>
+                ...ForEach(headerAndRows.slice(1), (row: MarkdownAST[][]) =>
                     Tr(
                         ...ForEach(row, (r, idx) =>
-                            Td(...InlineRUIElements(r))
+                            Td(InlineRUIElements(r))
                                 .border("thin solid gray")
                                 .borderCollapse("collapse")
                                 .padding("5px")
@@ -226,7 +226,7 @@ export const defaultBlockMap: MarkdownerRuleMap = {
                                 defaultChecked: isChecked
                             }).margin(0),
                         "  ",
-                        ...InlineRUIElements(item.item)
+                        InlineRUIElements(item.item)
                     ).width("100%"),
                     BlockRUIElements(item.content)
                         .paddingLeft("20px")
@@ -325,8 +325,8 @@ export const defaultBlockMap: MarkdownerRuleMap = {
             .findInlineItems("FootnoteSup", footnoteSup=>footnoteSup.props?.noteName===noteName)
         return (
             Span(
-                Span(`[${noteName}]\t`),
-                ...InlineRUIElements(content),
+                Span(`[${noteName}] `).whiteSpace("pre-wrap"),
+                InlineRUIElements(content),
                 ...ForEach(footnoteSubTrees, (footnoteSup: MarkdownAST) =>
                     A(RUITag(MdOutlineReply)())
                         .setProp("href", `#Markdowner-FootnoteSup-${noteName}-${footnoteSup.props.footnoteSupId}`)

@@ -2,7 +2,7 @@ import {InlineMarkdownTagExtend, InlineMarkdownTag} from "./inline/regex";
 import {BlockMarkdownTagExtend, BlockMarkdownTag} from "./block/regex";
 import {flattened} from "../base/utils";
 import {uid} from "../base/utils";
-import {MarkdownAST} from "../base/syntaxTree";
+import {MarkdownAST} from "../base/ast";
 
 export interface InlineMarkdownRules {
     [key: string]: InlineMarkdownTag | InlineMarkdownTagExtend
@@ -139,13 +139,31 @@ export const blockDefaultRules: BlockMarkdownRules = {
             exact: / *\|(?:.+?\|)+\n *\|(?: *[-*:]{1,2}-+[-*:]{1,2}? *\|)+(?:\n *\|(?:.+?\|)+)*/
         },
         parseContent: (text, handler) => {
-            let header: string[]
-
+            let header: MarkdownAST[][]
             let allRows = text.split("\n").filter(r=>r!=="")
-            header = allRows[0].split("|").map(h=>h.trim()).filter(h=>h!=="")
-            let headerAligns: ("left"|"center"|"right")[] = Array(header.length).fill("center")
-            let rowAligns: ("left"|"center"|"right")[] = Array(header.length).fill("left")
-            let rows: MarkdownAST[][][] = []
+            header = allRows[0].split("|").map(h=>h.trim()).filter(h=>h!=="").map(i=>handler.parser.inlineParser.new().parse(i.trim()))
+            let headerAndRows: MarkdownAST[][][] = [header]
+
+            if (allRows.length > 2) {
+                headerAndRows.push(...allRows.slice(2).map(r=>r.trim().split("|").filter(i=>i!=="").map(i=>handler.parser.inlineParser.new().parse(i.trim()))))
+            }
+            return headerAndRows
+
+        },
+        recheckMatch: raw => {
+            let rowNum: number | undefined
+            for (let line of raw.split(/\n/g).filter(l=>l.trim()!=="")) {
+                let newRowNum = line.split("|").length
+                if (rowNum !== undefined && newRowNum !== rowNum) return false
+                rowNum = newRowNum
+            }
+            return true
+        },
+        getProps: raw => {
+            let allRows = raw.split("\n").filter(r=>r!=="")
+            let column = allRows[0].split("|").map(h=>h.trim()).filter(h=>h!=="").length
+            let headerAligns: ("left"|"center"|"right")[] = Array(column).fill("center")
+            let rowAligns: ("left"|"center"|"right")[] = Array(column).fill("left")
 
             if (allRows.length !== 1) {
                 let alignTags = allRows[1].split("|").map(i=>i.trim()).filter(i=>i!=="")
@@ -167,19 +185,8 @@ export const blockDefaultRules: BlockMarkdownRules = {
                         rowAligns[idx] = "center"
                     }
                 }
-                rows = allRows.slice(2).map(r=>r.trim().split("|").filter(i=>i!=="").map(i=>handler.parser.inlineParser.new().parse(i.trim())))
             }
-            return {header, rows, headerAligns, rowAligns}
-
-        },
-        recheckMatch: raw => {
-            let rowNum: number | undefined
-            for (let line of raw.split(/\n/g).filter(l=>l.trim()!=="")) {
-                let newRowNum = line.split("|").length
-                if (rowNum !== undefined && newRowNum !== rowNum) return false
-                rowNum = newRowNum
-            }
-            return true
+            return {headerAligns, rowAligns}
         }
     },
     Divider: {

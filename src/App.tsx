@@ -11,13 +11,14 @@ import {
 import {Div, Span} from "@iandx/reactui/tag";
 import {benchmark} from "./benchmark";
 import {renderToString} from "react-dom/server";
+import {MarkdownAST} from "./base/ast";
 
 
 let a: MarkdownerBlockRuleInterface = {
     name: "Heading",
     rule: {
         tags: {
-            leading: /\(#{1,5} \)/,
+            leading: /#{1,5} /,
             exact: [/(?:\n|^).+?\n===+ */, /(?:\n|^).+? ?\n---+ */]
         },
         getProps: (raw) => {
@@ -50,6 +51,8 @@ Markdowner.addRule.inline({
     view: (content: string) =>
         <span style={{color:"red"}}>{content}</span>,
 })
+
+
 
 function EditableMarkdowner() {
     // benchmark()

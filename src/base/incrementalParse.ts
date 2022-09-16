@@ -1,15 +1,4 @@
 import {ContainerItem, MarkdownAST} from "./ast";
-import {C} from "./index";
-
-export class MarkdownerHelper {
-    static warn(position: string, warning: string) {
-        console.warn(`Markdowner-${position}: ${warning}`)
-    }
-
-    static throw(position: string, throwMessage: string) {
-        throw `Markdowner-${position}: ${throwMessage}`
-    }
-}
 
 export class IncrementalParse {
     private static incrementalParseContainer(preASTNoIdContent: ContainerItem[], currASTNoIdContent: ContainerItem[],
@@ -41,28 +30,28 @@ export class IncrementalParse {
     private static incrementalParseContent(preASTNoIdContent: MarkdownAST[] | any, currASTNoIdContent: MarkdownAST[] | any,
                                            preASTContent: MarkdownAST[] | any, currASTContent: MarkdownAST[] | any) {
         let newContent: any = currASTContent
-            if (currASTContent.length>0) {
-                if (currASTContent[0] instanceof Array) {
-                    newContent = []
-                    for (let i in Array(currASTContent.length).fill(0)) {
-                        if (!preASTContent[i]) {
-                            newContent.push(currASTContent[i])
-                            continue
-                        }
-                        newContent.push(this.incrementalParseContent(
-                            preASTNoIdContent[i], currASTNoIdContent[i], preASTContent[i], currASTContent[i]
-                        ))
+        if (currASTContent.length>0) {
+            if (currASTContent[0] instanceof Array) {
+                newContent = []
+                for (let i in Array(currASTContent.length).fill(0)) {
+                    if (!preASTContent[i]) {
+                        newContent.push(currASTContent[i])
+                        continue
                     }
-                } else if (currASTContent[0].level === "inline") {
-                    // inline
-                    newContent = this.incrementalParse(
-                        preASTNoIdContent, currASTNoIdContent, preASTContent, currASTContent)
-                } else if (!!currASTContent[0].item && !!currASTContent[0].content) {
-                    // container
-                    newContent = this.incrementalParseContainer(
-                        preASTNoIdContent, currASTNoIdContent, preASTContent, currASTContent)
+                    newContent.push(this.incrementalParseContent(
+                        preASTNoIdContent[i], currASTNoIdContent[i], preASTContent[i], currASTContent[i]
+                    ))
                 }
+            } else if (currASTContent[0].level === "inline") {
+                // inline
+                newContent = this.incrementalParse(
+                    preASTNoIdContent, currASTNoIdContent, preASTContent, currASTContent)
+            } else if (!!currASTContent[0].item && !!currASTContent[0].content) {
+                // container
+                newContent = this.incrementalParseContainer(
+                    preASTNoIdContent, currASTNoIdContent, preASTContent, currASTContent)
             }
+        }
         return newContent
     }
 
@@ -117,40 +106,4 @@ export class IncrementalParse {
             '}')
         return JSON.parse(treesString) as MarkdownAST[]
     }
-
 }
-export class ASTHelper {
-    trees: MarkdownAST[] = []
-    markdowner: C.Markdowner
-
-    constructor(markdowner: C.Markdowner) {
-        this.markdowner = markdowner
-    }
-
-    flatten() {
-        return ASTHelper.flattenASTs(this.trees)
-    }
-
-    static flattenASTs(asts: MarkdownAST[]): MarkdownAST[] {
-        let flatASTs: MarkdownAST[] = []
-        for (let ast of asts) {
-            flatASTs.push(ast)
-            if (ast.content instanceof Array<MarkdownAST>) {
-                flatASTs.push(...ASTHelper.flattenASTs(ast.content))
-            }
-        }
-        return flatASTs
-    }
-
-    findInlineItems(typeName: string, condition: (inlineAST: MarkdownAST) => boolean=()=>true) {
-        return this.flatten().filter(t=>t.type===typeName && condition(t))
-    }
-
-    findBlocks(typeName: string, condition: (blockAST: MarkdownAST) => boolean=()=>true) {
-        return this.trees.filter(t=>t.type===typeName && condition(t))
-    }
-}
-
-
-
-

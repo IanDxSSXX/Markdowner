@@ -1,11 +1,11 @@
-import {MarkdownerHelper} from "./helper";
+import {MarkdownerLogger} from "./logger";
 
 const regexKeywords = ["*", "+", "[", "]", "/", "(", ")", "\\", "^", "?", ":", "$"]
 
 export function correctRegExpKeywords(tag: string | RegExp) {
     if (tag instanceof RegExp) {
         if (/(^|[^\\])\([^?].*?(?!\\)\)/g.test(tag.source)) {
-            MarkdownerHelper.throw("RegExp", `/${tag.source}/ has a capturing group, try to replace (xx) with (?:xx), ` +
+            MarkdownerLogger.throw("RegExp", `/${tag.source}/ has a capturing group, try to replace (xx) with (?:xx), ` +
             `or google it how to use a non-capturing group`)
         }
         return tag.source

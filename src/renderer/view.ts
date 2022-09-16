@@ -5,8 +5,7 @@ import {defaultBlockMap, defaultInlineMap, MarkdownerViewFunc} from "./ruleMap";
 import {Div, Span} from "@iandx/reactui/tag";
 import {ReactElement, useMemo} from "react";
 import {ReactUIBase} from "@iandx/reactui/core";
-import React from "react"
-import {MarkdownerHelper} from "../base/helper";
+import {MarkdownerLogger} from "../base/logger";
 
 namespace C {
     export class MarkdownerViewBase {
@@ -58,7 +57,7 @@ namespace C {
             if (!!blockFunc) {
                 element = blockFunc(markdownAST.content, markdownAST.props)
             } else {
-                MarkdownerHelper.warn("Render-block", `didn't have a block map named ${markdownAST.type}, treat it as plain text`)
+                MarkdownerLogger.warn("Render-block", `didn't have a block map named ${markdownAST.type}, treat it as plain text`)
                 element = Span(markdownAST.raw)
             }
 
@@ -80,7 +79,7 @@ namespace C {
             if (!!inlineFunc) {
                 element = inlineFunc(inlineAST.content, inlineAST.props)
             } else {
-                MarkdownerHelper.warn("Render-inline", `didn't have a block map named ${inlineAST.type}, treat it as plain text`)
+                MarkdownerLogger.warn("Render-inline", `didn't have a block map named ${inlineAST.type}, treat it as plain text`)
                 element = Span(inlineAST.raw)
             }
             return this.toRUIElement(element)

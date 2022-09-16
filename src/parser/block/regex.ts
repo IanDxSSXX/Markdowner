@@ -1,7 +1,7 @@
 import {correctRegExpKeywords} from "../../base/utils";
 import {inlineDefaultRules, InlineMarkdownRules} from "../rules";
 import {C} from "./parser";
-import {MarkdownerHelper} from "../../base/helper";
+import {MarkdownerLogger} from "../../base/logger";
 
 // ---- declaring
 export type BlockMarkdownTagType = string | RegExp
@@ -70,7 +70,7 @@ export class BlockTagHandler {
             this.blockType = "container"
             // ---- only support leading
             if (!tagExtend.tags.leading || !!tagExtend.tags.round || !!tagExtend.tags.wrap || !!tagExtend.tags.exact) {
-                MarkdownerHelper.warn("Block-tag", `container block [${this.ruleName}] only support leading tags`)
+                MarkdownerLogger.warn("Block-tag", `container block [${this.ruleName}] only support leading tags`)
             }
         }
 
@@ -178,7 +178,7 @@ export class BlockTagHandler {
                 let blockProp = JSON.parse(blockPropString)
                 return [{blockProp}, trimedText]
             } catch (e) {
-                MarkdownerHelper.warn("Block-getProp", `${blockPropString} is not valid as a json blockProp, treat is as a string`)
+                MarkdownerLogger.warn("Block-getProp", `${blockPropString} is not valid as a json blockProp, treat is as a string`)
                 return [{blockProp: blockPropString}, trimedText]
             }
         }

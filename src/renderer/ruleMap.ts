@@ -22,8 +22,8 @@ import {ReactUIBase} from "@iandx/reactui/core";
 import {latexStyle} from "../.supports/latexStyles/styles";
 import {Indexing} from "../base/utils";
 import {BlockRUIElements, InlineRUIElements} from "./view";
-import {MarkdownerHelper} from "../base/helper";
 import {ReactElement} from "react";
+import {MarkdownerLogger} from "../base/logger";
 
 
 export type MarkdownerViewFunc = (content: string|MarkdownAST[]|ContainerItem[]|any, props: any)=>ReactUIBase|ReactElement
@@ -77,7 +77,7 @@ export const defaultInlineMap: MarkdownerRuleMap = {
             })
         } catch (e) {
             __html = content
-            MarkdownerHelper.warn("Latex math", "Error when parsing LaTex math formula, default parser is using " +
+            MarkdownerLogger.warn("Latex math", "Error when parsing LaTex math formula, default parser is using " +
                 "this project(https://github.com/KaTeX/KaTeX), " +
                 "install it as dependency to use this feature or override [MathBlock] View")
         }
@@ -123,7 +123,7 @@ export const defaultBlockMap: MarkdownerRuleMap = {
             props.style = oneLight
         } catch (e) {
             blockTag = "code"
-            MarkdownerHelper.warn("Code block", "Error when parsing Code block, default parser is using " +
+            MarkdownerLogger.warn("Code block", "Error when parsing Code block, default parser is using " +
                 "this project(https://github.com/react-syntax-highlighter/react-syntax-highlighter), " +
                 "install it as dependency to use this feature or override [MathBlock] View or just using <code/> like now")
         }
@@ -277,7 +277,7 @@ export const defaultBlockMap: MarkdownerRuleMap = {
             })
         } catch (e) {
             __html = content
-            MarkdownerHelper.warn("Latex math", "Error when parsing LaTex math formula, default parser is using " +
+            MarkdownerLogger.warn("Latex math", "Error when parsing LaTex math formula, default parser is using " +
                 "this project(https://github.com/KaTeX/KaTeX), " +
                 "install it as dependency to use this feature or override [MathBlock] View")
         }
@@ -299,7 +299,7 @@ export const defaultBlockMap: MarkdownerRuleMap = {
                 latexHtml = `<div style='color:red'>${content}</div>`
             }
         } catch (e) {
-            MarkdownerHelper.warn("Latex", "Error when parsing LaTex Document, default parser is using " +
+            MarkdownerLogger.warn("Latex", "Error when parsing LaTex Document, default parser is using " +
                 "this project(https://github.com/michael-brade/LaTeX.js), " +
                 "install it as dependency to use this feature or override [Latex] View")
             latexHtml = content

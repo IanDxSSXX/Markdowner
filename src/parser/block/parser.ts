@@ -6,6 +6,7 @@ import {blockDefaultRules, BlockMarkdownRules} from "../rules";
 import {capturingRegExp} from "../../base/utils";
 import {inlineDefaultRules, InlineMarkdownRules} from "../rules";
 import {C as IC, MarkdownInlineParser} from "../inline/parser"
+import {MarkdownerLogger} from "../../base/logger";
 
 
 export namespace C {
@@ -176,6 +177,7 @@ export namespace C {
                 type: "Paragraph", raw: content, level: 0, isContainer: false, containerItems: []
             })]
             let splitContent = content.split(capturingRegExp(this.splitString))
+            MarkdownerLogger.debug("block-parser-splitContent", splitContent, 1)
 
             let splitBlockASTs: BlockAST[] = []
             let isMatched = true
@@ -202,6 +204,9 @@ export namespace C {
                 }
                 splitBlockASTs.push(blockAST)
             }
+
+            MarkdownerLogger.debug("block-parser-splitBlockASTs", splitBlockASTs, 1)
+
 
             let blockASTs: BlockAST[] = []
             let container = new Container()
@@ -286,6 +291,8 @@ export namespace C {
                 container.close(blockASTs)
             }
 
+            MarkdownerLogger.debug("block-parser-blockASTs", blockASTs, 1)
+
             let markdownASTs: MarkdownAST[] = []
             for (let blockAST of blockASTs) {
                 markdownASTs.push(this.geneMarkdownAST(blockAST))
@@ -295,6 +302,7 @@ export namespace C {
 
         }
         parse(content: string) {
+            MarkdownerLogger.debug("block-parser-rawContent", content, 1)
             for (let rule of this.blockRuleHandlers) {
                 if (capturingRegExp(rule.regexString).test(content)) {
                     this.usedRuleHandlerMap[rule.ruleName] = rule
@@ -303,6 +311,10 @@ export namespace C {
             let splitStrings = Object.values(this.usedRuleHandlerMap).map(rule=>rule.regexString)
             splitStrings.unshift(`(?:${this.newLineRegexString}(?=\\n|$))`)
             this.splitString = splitStrings.join("|")
+
+            MarkdownerLogger.debug("block-parser-usedHandler", this.usedRuleHandlerMap, 2)
+            MarkdownerLogger.debug("block-parser-splitString", this.splitString, 2)
+
 
             content = content.replaceAll("\t", " ".repeat(this.tabSpaceNum))
             content = handleAsciiConflict(content)

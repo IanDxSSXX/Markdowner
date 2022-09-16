@@ -51,6 +51,7 @@ Markdowner.addRule.inline({
     view: (content: string) =>
         <span style={{color:"red"}}>{content}</span>,
 })
+Markdowner.debug(2)
 
 
 

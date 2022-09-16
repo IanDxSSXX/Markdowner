@@ -45,6 +45,10 @@ export class IncrementalParse {
                 if (currASTContent[0] instanceof Array) {
                     newContent = []
                     for (let i in Array(currASTContent.length).fill(0)) {
+                        if (!preASTContent[i]) {
+                            newContent.push(currASTContent[i])
+                            continue
+                        }
                         newContent.push(this.incrementalParseContent(
                             preASTNoIdContent[i], currASTNoIdContent[i], preASTContent[i], currASTContent[i]
                         ))
@@ -98,12 +102,11 @@ export class IncrementalParse {
         return currASTs
     }
     static parse(preASTs: MarkdownAST[], currASTs: MarkdownAST[]): MarkdownAST[] {
-        if (currASTs.length === 1 && currASTs[0].type === "error") return currASTs
         let preASTsNoId = this.dropId(preASTs)
         let currASTsNoId = this.dropId(currASTs)
 
         currASTs = this.incrementalParse(preASTsNoId, currASTsNoId, preASTs, currASTs)
-        
+
         return currASTs
     }
 

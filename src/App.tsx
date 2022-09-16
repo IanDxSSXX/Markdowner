@@ -8,11 +8,10 @@ import {
     ReactMarkdowner,
     RUIMarkdowner
 } from "./base";
-import {EditableMarkdowner} from "./editor/wysiwyg/main";
+import {Div} from "@iandx/reactui/tag";
 
 Markdowner.init({softBreak: true})
 Markdowner.dropRule.block(["Heading"])
-Markdowner.addRule.block(a)
 Markdowner.addRule.inline({
     name: "What",
     rule: { tags:{round: "hh" }, allowNesting: false},

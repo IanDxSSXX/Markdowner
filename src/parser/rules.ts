@@ -93,7 +93,7 @@ export const blockDefaultRules: BlockMarkdownRules = {
     Heading: {
         tags: {
             leading: /#{1,5} /,
-            exact: [/.+?\n===+ */, /(?:\n|^).+? ?\n---+ */]
+            exact: [/.+?\n===+ */, /.+? ?\n---+ */]
         },
         getProps: (text) => {
             let headingLevel: number

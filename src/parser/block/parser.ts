@@ -84,6 +84,7 @@ export namespace C {
             })
         }
         addContent(blockAST: BlockAST) {
+            this.lastContainer.raw! += blockAST.raw
             this.lastChild.content.push(blockAST)
         }
 

@@ -8,40 +8,8 @@ import {
     ReactMarkdowner,
     RUIMarkdowner
 } from "./base";
-import {Div, Span} from "@iandx/reactui/tag";
-import {benchmark} from "./benchmark";
-import {renderToString} from "react-dom/server";
-import {MarkdownAST} from "./base/ast";
+import {EditableMarkdowner} from "./editor/wysiwyg/main";
 
-
-let a: MarkdownerBlockRuleInterface = {
-    name: "Heading",
-    rule: {
-        tags: {
-            leading: /#{1,5} /,
-            exact: [/(?:\n|^).+?\n===+ */, /(?:\n|^).+? ?\n---+ */]
-        },
-        getProps: (raw) => {
-            let headingLevel: number
-            let hashHeadingMatch = raw.match(/^#+ /)
-            if (hashHeadingMatch) {
-                headingLevel = hashHeadingMatch![0].trim().length
-            } else {
-                let heading1Match = raw.match(/\n===+/)
-                headingLevel = !!heading1Match ? 1 : 2
-            }
-            return {headingLevel}
-        },
-        trimText: raw => raw.replaceAll(/\n((===+)|(---+))/g, "").replaceAll(/^#{1,5} /g, ""),
-        parseContent: text => text,
-        recheckMatch: raw => {
-            return true
-        },
-        blockType: "leaf"
-    },
-    view: (content: any, {headingLevel, blockProp}) =>
-        <span style={{fontSize:`${(5 - (headingLevel ?? 1)) * 6 + 15}px`}}>{content+(!!blockProp ? blockProp.a:"")}</span>
-}
 Markdowner.init({softBreak: true})
 Markdowner.dropRule.block(["Heading"])
 Markdowner.addRule.block(a)

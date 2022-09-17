@@ -1,5 +1,6 @@
 import {correctRegExpKeywords} from "../../base/utils";
 import {C} from "./parser";
+import {MarkdownerLogger} from "../../base/logger";
 
 // ---- declaring
 export type InlineInlineMarkdownTagType = string | RegExp
@@ -49,7 +50,7 @@ export class InlineTagHandler {
     }
 
     // ---- initialization
-    protected parseExtend(tagExtend: InlineMarkdownTagExtend) {
+    private parseExtend(tagExtend: InlineMarkdownTagExtend) {
         if (tagExtend.order !== undefined) this.order = tagExtend.order
         if (!!tagExtend.getProps) this.getProps = (raw: string) => {
             let getPropsArr: any = tagExtend.getProps
@@ -88,8 +89,14 @@ export class InlineTagHandler {
     }
 
 
-    protected getTags(tags: InlineMarkdownTag): InlineMarkdownTag {
+    private getTags(tags: InlineMarkdownTag): InlineMarkdownTag {
         let newTags: InlineMarkdownTag = {...tags}
+        for (let key of Object.keys(newTags)) {
+            if (!["round", "wrap", "exact"].includes(key)) {
+                MarkdownerLogger.throw("inline-tag", `tag key "${key}" is not supported in rule "${this.ruleName}", `+
+                    `only supports ["round", "wrap", "exact"]`)
+            }
+        }
         if (!!newTags.round && !(Array.isArray(newTags.round!))) newTags.round = [newTags.round! as any];
         if (!!newTags.wrap && !Array.isArray(newTags.wrap[0])) newTags.wrap = [newTags.wrap! as any];
         if (!!newTags.exact && !(Array.isArray(newTags.exact!))) newTags.exact = [newTags.exact as any];
@@ -97,7 +104,7 @@ export class InlineTagHandler {
         return newTags as InlineMarkdownTag
     }
 
-    protected initRegex() {
+    private initRegex() {
         // ---- no space at start or end
         let regexArray: string[] = []
         // ---* parse [T]text[T]
@@ -120,7 +127,7 @@ export class InlineTagHandler {
     }
 
     // ---- syntax tree default func
-    protected defaultTrimText(text: string) {
+    private defaultTrimText(text: string) {
         let trimText = text
         // ---- trim round tag like *abc*
         for (let tag of (this.tags.round ?? []) as Array<InlineInlineMarkdownTagType>) {

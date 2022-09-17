@@ -1,21 +1,30 @@
 import {C} from "./markdowner";
 import {blockDefaultRules, DefaultBlockRules, DefaultInlineRules, inlineDefaultRules} from "../parser/rules";
 import {BlockMarkdownTag, BlockMarkdownTagExtend} from "../parser/block/regex";
-import {defaultBlockMap, defaultInlineMap, MarkdownerViewFunc} from "../renderer/ruleMap";
+import {
+    defaultBlockMap,
+    defaultInlineMap,
+    MarkdownerReactViewFunc,
+    MarkdownerRUIViewFunc,
+    MarkdownerViewFunc
+} from "../renderer/ruleMap";
 import {InlineMarkdownTag, InlineMarkdownTagExtend} from "../parser/inline/regex";
 import {MarkdownerLogger} from "./logger";
+import {InlineElements, InlineRUIElements} from "../renderer/view";
 
 
 export interface MarkdownerBlockRuleInterface {
     name: string
     rule: BlockMarkdownTag | BlockMarkdownTagExtend | "default"
-    view: MarkdownerViewFunc | "default"
+    view?: MarkdownerReactViewFunc | "default"
+    ruiView?: MarkdownerRUIViewFunc | "default"
 }
 
 export interface MarkdownerInlineRuleInterface {
     name: string
     rule: InlineMarkdownTag | InlineMarkdownTagExtend | "default"
-    view: MarkdownerViewFunc | "default"
+    view?: MarkdownerReactViewFunc | "default"
+    ruiView?: MarkdownerRUIViewFunc | "default"
 }
 
 
@@ -52,7 +61,7 @@ export class RuleAdder {
         this.markdowner = markdowner
     }
 
-    block({name,rule,view}:MarkdownerBlockRuleInterface) {
+    block({name,rule,view,ruiView}:MarkdownerBlockRuleInterface) {
         if (rule === "default") {
             rule = blockDefaultRules[name]
             if (rule === undefined) {
@@ -60,15 +69,32 @@ export class RuleAdder {
                 return
             }
         }
-        if (view === "default") {
-            view = defaultBlockMap[name]
-            if (view === undefined) {
-                MarkdownerLogger.warn("Add block view", `No default block view of ruleName ${name}, skipping...`)
-                return
-            }
-        }
+
         this.markdowner.blockRules[name] = rule
-        this.markdowner.blockRuleMap[name] = view
+        if (!!view) {
+            let newView: any = view
+            if (view === "default") {
+                newView = defaultBlockMap[name]
+                if (view === undefined) {
+                    MarkdownerLogger.warn("Add block view", `No default block view of ruleName ${name}, skipping...`)
+                    return
+                }
+            }
+            this.markdowner.blockRuleMap[name] = newView
+        }
+        if (!!ruiView) {
+            // ---- ruiView
+            let newRuiView: any = ruiView
+            if (ruiView === "default") {
+                newRuiView = defaultInlineMap[name]
+                if (newRuiView === undefined) {
+                    MarkdownerLogger.warn("Add inline view", `No default inline view of ruleName ${name}, skipping...`)
+                    return
+                }
+            }
+            this.markdowner.inlineRuleMap[name] = newRuiView
+        }
+
         this.markdowner.init(this.markdowner.markdownerProps)
     }
 
@@ -78,7 +104,8 @@ export class RuleAdder {
         }
     }
 
-    inline({name,rule,view}:MarkdownerInlineRuleInterface) {
+    inline({name,rule,view,ruiView}:MarkdownerInlineRuleInterface) {
+        // ---- rule
         if (rule === "default") {
             rule = inlineDefaultRules[name]
             if (rule === undefined) {
@@ -86,15 +113,48 @@ export class RuleAdder {
                 return
             }
         }
-        if (view === "default") {
-            view = defaultInlineMap[name]
-            if (view === undefined) {
-                MarkdownerLogger.warn("Add inline view", `No default inline view of ruleName ${name}, skipping...`)
-                return
-            }
-        }
         this.markdowner.inlineRules[name] = rule
-        this.markdowner.inlineRuleMap[name] = view
+
+        if (!!view) {
+            // ---- react view
+            let newView: any
+            if (view === "default") {
+                newView = defaultInlineMap[name]
+                if (newView === undefined) {
+                    MarkdownerLogger.warn("Add inline view", `No default inline view of ruleName ${name}, skipping...`)
+                    return
+                }
+            } else {
+                newView = (content: any, props: any) => {
+                    if (content instanceof Array && content.length>0 && content[0].level==="inline") {
+                        content = InlineElements(content)
+                    }
+                    return (view as MarkdownerViewFunc)(content, props)
+                }
+            }
+            this.markdowner.inlineRuleMap[name] = newView
+        }
+        if (!!ruiView) {
+            // ---- ruiView
+            let newRuiView: any
+            if (ruiView === "default") {
+                newRuiView = defaultInlineMap[name]
+                if (newRuiView === undefined) {
+                    MarkdownerLogger.warn("Add inline view", `No default inline view of ruleName ${name}, skipping...`)
+                    return
+                }
+            } else {
+                newRuiView = (content: any, props: any) => {
+                    if (content instanceof Array && content.length>0 && content[0].level==="inline") {
+                        content = InlineRUIElements(content)
+                    }
+                    return (ruiView as MarkdownerViewFunc)(content, props)
+                }
+            }
+            this.markdowner.inlineRuleMap[name] = newRuiView
+        }
+
+        // ---- reinit
         this.markdowner.init(this.markdowner.markdownerProps)
     }
 

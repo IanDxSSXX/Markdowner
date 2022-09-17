@@ -14,11 +14,12 @@ Markdowner.init({softBreak: true})
 Markdowner.dropRule.block(["Heading"])
 Markdowner.addRule.inline({
     name: "What",
-    rule: { tags:{round: "hh" }, allowNesting: false},
-    view: (content: string) =>
-        <span style={{color:"red"}}>{content}</span>,
+    rule: { tags:{round: "hh"}, allowNesting: true},
+    view: (content: any) => {
+        return <span style={{color:"red"}}>{content}</span>
+    }
 })
-Markdowner.debug(2)
+Markdowner.debug(0)
 
 
 

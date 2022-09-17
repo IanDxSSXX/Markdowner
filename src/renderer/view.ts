@@ -69,9 +69,7 @@ namespace C {
                     this.inline(markdownAST)
                         .className(`Markdowner-inline-${markdownAST.type}`)
                 , [markdownAST.id ?? false, markdownAST.raw])
-        }
-
-        )
+        })
 
         private inline(inlineAST: MarkdownAST): ReactUIBase {
             let inlineFunc = this.inlineMap[inlineAST.type]
@@ -85,21 +83,20 @@ namespace C {
             return this.toRUIElement(element)
         }
 
+        inlineRUIElements(inlineASTs: MarkdownAST[]) {
+            return inlineASTs.map((inlineAST, idx) => this.inlineView({markdownAST:inlineAST}).key(inlineAST.id??idx))
+        }
+
+        inlineElements(inlineASTs: MarkdownAST[]) {
+            return this.inlineRUIElements(inlineASTs).map(el=>el.asReactElement())
+        }
+
         toRUIElement(element: ReactUIBase | ReactElement): ReactUIBase {
             if ((element as any).IAmReactUI??false) {
                 return element as ReactUIBase
             } else {
                 return RUIElement(element as ReactElement)
             }
-        }
-
-        inlineRUIElements(inlineASTs: MarkdownAST[]) {
-            // return inlineASTs.map((inlineAST, idx) => this.inlineView({markdownAST:inlineAST}).key(inlineAST.id??idx))
-            return inlineASTs.map((inlineAST, idx) => this.inlineView({markdownAST:inlineAST}).key(inlineAST.id??idx))
-        }
-
-        inlineElements(inlineASTs: MarkdownAST[]) {
-            return this.inlineRUIElements(inlineASTs).map(el=>el.asReactElement())
         }
 
         

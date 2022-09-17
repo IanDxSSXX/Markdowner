@@ -54,10 +54,10 @@ export class BlockTagHandler {
         this.parser = parser
         if (Object.keys(tags).includes("tags")) {
             let tagExtend = tags as BlockMarkdownTagExtend
-            this.tags = BlockTagHandler.getTags(tagExtend.tags)
+            this.tags = this.getTags(tagExtend.tags)
             this.parseExtend(tagExtend)
         } else {
-            this.tags = BlockTagHandler.getTags(tags as BlockMarkdownTag)
+            this.tags = this.getTags(tags as BlockMarkdownTag)
         }
 
         this.initRegex();
@@ -103,8 +103,13 @@ export class BlockTagHandler {
         }
     }
 
-    private static getTags(tags: BlockMarkdownTag): BlockMarkdownTag {
+    private getTags(tags: BlockMarkdownTag): BlockMarkdownTag {
         let newTags: BlockMarkdownTag = {...tags}
+        for (let key of Object.keys(newTags)) {
+            if (!["round", "wrap", "exact", "leading"].includes(key)) {
+                MarkdownerLogger.throw("block-tag", `tag key "${key}" is not supported in rule "${this.ruleName}", `+
+                    `only supports ["round", "wrap", "exact, "leading"]`)            }
+        }
         if (!!newTags.round && !(Array.isArray(newTags.round!))) newTags.round = [newTags.round! as any];
         if (!!newTags.leading && !(Array.isArray(newTags.leading!))) newTags.leading = [newTags.leading! as any];
         if (!!newTags.wrap && !Array.isArray(newTags.wrap[0])) newTags.wrap = [newTags.wrap! as any];

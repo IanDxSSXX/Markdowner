@@ -27,6 +27,9 @@ import {MarkdownerLogger} from "../base/logger";
 
 
 export type MarkdownerViewFunc = (content: string|MarkdownAST[]|ContainerItem[]|any, props: any)=>ReactUIBase|ReactElement
+export type MarkdownerReactViewFunc = (content: string|MarkdownAST[]|ContainerItem[]|any, props: any)=>ReactElement
+export type MarkdownerRUIViewFunc = (content: string|MarkdownAST[]|ContainerItem[]|any, props: any)=>ReactUIBase
+
 export interface MarkdownerRuleMap {[key:string]: MarkdownerViewFunc}
 export const defaultInlineMap: MarkdownerRuleMap = {
     Text: (content) =>

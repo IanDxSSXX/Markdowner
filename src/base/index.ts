@@ -1,7 +1,10 @@
-import {BlockRUIElements, InlineRUIElements, InlineElements, BlockElements} from "../renderer/view";
 import {MarkdownerBlockRuleInterface, MarkdownerInlineRuleInterface} from "./rules";
-import {Markdowner, ReactMarkdowner, RUIMarkdowner} from "./markdowner";
+import {Markdowner} from "./markdowner";
+import {BlockRTElements, BlockElements} from "../renderer/DocumentView";
+import {InlineRTElements, InlineElements} from "../renderer/InlineView";
+import {ReactMarkdowner, RTMarkdowner} from "./MarkdownerView"
 
-export {Markdowner, ReactMarkdowner, RUIMarkdowner}
-export {InlineRUIElements, InlineElements, BlockRUIElements, BlockElements}
+
+export {Markdowner, ReactMarkdowner, RTMarkdowner}
+export {InlineRTElements, InlineElements, BlockRTElements, BlockElements}
 export type {MarkdownerBlockRuleInterface, MarkdownerInlineRuleInterface}

@@ -1,12 +1,12 @@
 import {MarkdownAST} from "./ast";
-import {C} from "./markdowner";
+import {MarkdownerClass} from "./markdowner";
 
 
 export class ASTHelper {
     trees: MarkdownAST[] = []
-    markdowner: C.Markdowner
+    markdowner: MarkdownerClass
 
-    constructor(markdowner: C.Markdowner) {
+    constructor(markdowner: MarkdownerClass) {
         this.markdowner = markdowner
     }
 

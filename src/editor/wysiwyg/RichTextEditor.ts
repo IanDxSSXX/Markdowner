@@ -1,29 +1,30 @@
-import {ReactUIElement} from "@iandx/reactui/core";
-import EditableDiv from "../utils/EditableDiv";
-import {ForEach, useRUIState} from "@iandx/reactui";
-import {RUIMarkdowner} from "../../base";
+// import EditableDiv from "../utils/EditableDiv";
+// import {ForEach, useRTState, View} from "@iandx/reactui";
+// import {RTMarkdowner} from "../../base";
+//
+// export class RichTextEditor extends View {
+//     Body = () => {
+//         let content = useRTState("")
+//
+//         let textBlock =
+//             EditableDiv(
+//                 RTMarkdowner({content: content.value}),
+//             )
+//
+//         textBlock
+//             .onInput((e)=>{
+//                 let currContent = e.currentTarget.textContent
+//                 console.log(currContent)
+//             })
+//
+//
+//
+//         return textBlock
+//     }
+// }
+//
+// export default function() {
+//     return new RichTextEditor()
+// }
 
-export class RichTextEditor extends ReactUIElement {
-    Body = () => {
-        let content = useRUIState("")
-
-        let textBlock =
-            EditableDiv(
-                RUIMarkdowner({content: content.value}),
-            ).registerBy(this)
-
-        textBlock
-            .onInput((e)=>{
-                let currContent = e.currentTarget.textContent
-                console.log(currContent)
-            })
-
-
-
-        return textBlock
-    }
-}
-
-export default function() {
-    return new RichTextEditor()
-}
+export {}
